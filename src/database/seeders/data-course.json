@@ -1,0 +1,48 @@
+[
+  {
+    "title": "Course Title",
+    "slug": "course-title",
+    "description": "Course description",
+    "cover_image": "cover.jpg",
+    "video_url": "https://example.com/course-video.mp4",
+    "isOpen": true,
+    "total_hours": 10,
+    "modules": [
+      {
+        "title": "Module Title",
+        "slug": "module-title",
+        "description": "Module description",
+        "video_url": "https://example.com/module-video.mp4",
+        "cover_image": "module-cover.jpg",
+        "position": 1,
+        "lessons": [
+          {
+            "title": "Lesson Title",
+            "slug": "lesson-title",
+            "cover_image": "lesson-cover.jpg",
+            "video_url": "https://example.com/lesson-video.mp4",
+            "attachment": "lesson-attachment.pdf",
+            "position": 1,
+            "description": "Lesson description",
+            "epubs": [
+              {
+                "title": "Epub Title",
+                "file_path": "epub-file.epub"
+              }
+            ]
+          }
+        ],
+        "tasks": [
+          {
+            "title": "Task Title",
+            "slug": "task-title",
+            "content": "Task instructions or description",
+            "task_img": "task-image.jpg",
+            "attachment": "task-attachment.pdf",
+            "position": 1
+          }
+        ]
+      }
+    ]
+  }
+]

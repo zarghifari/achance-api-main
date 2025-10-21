@@ -1,0 +1,298 @@
+services:
+  # Load Balancer
+  nginx-lb:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/load-balancer.conf:/etc/nginx/nginx.conf
+      - ./src/public:/var/www/public
+      - ./docker/ssl:/etc/nginx/ssl
+    depends_on:
+      - app1
+      - app2
+      - app3
+    networks:
+      - achance-network
+    environment:
+      - NGINX_WORKER_PROCESSES=auto
+      - NGINX_WORKER_CONNECTIONS=1024
+
+  # PHP-FPM App Instances (3 instances for load balancing)
+  app1:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    volumes:
+      - ./src:/var/www
+      - ./docker/php/php.ini:/usr/local/etc/php/php.ini
+    environment:
+      - APP_INSTANCE=1
+      - PHP_OPCACHE_ENABLE=1
+      - PHP_OPCACHE_MEMORY_CONSUMPTION=512
+      - PHP_OPCACHE_MAX_ACCELERATED_FILES=50000
+      - PHP_OPCACHE_VALIDATE_TIMESTAMPS=0
+      - PHP_FPM_PM=dynamic
+      - PHP_FPM_PM_MAX_CHILDREN=50
+      - PHP_FPM_PM_START_SERVERS=10
+      - PHP_FPM_PM_MIN_SPARE_SERVERS=5
+      - PHP_FPM_PM_MAX_SPARE_SERVERS=20
+      - REDIS_HOST=redis-master
+      - REDIS_PORT=6379
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=achance
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+    networks:
+      - achance-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  app2:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    volumes:
+      - ./src:/var/www
+      - ./docker/php/php.ini:/usr/local/etc/php/php.ini
+    environment:
+      - APP_INSTANCE=2
+      - PHP_OPCACHE_ENABLE=1
+      - PHP_OPCACHE_MEMORY_CONSUMPTION=512
+      - PHP_OPCACHE_MAX_ACCELERATED_FILES=50000
+      - PHP_OPCACHE_VALIDATE_TIMESTAMPS=0
+      - PHP_FPM_PM=dynamic
+      - PHP_FPM_PM_MAX_CHILDREN=50
+      - PHP_FPM_PM_START_SERVERS=10
+      - PHP_FPM_PM_MIN_SPARE_SERVERS=5
+      - PHP_FPM_PM_MAX_SPARE_SERVERS=20
+      - REDIS_HOST=redis-master
+      - REDIS_PORT=6379
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=achance
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+      - REDIS_HOST=redis-master
+      - REDIS_PORT=6379
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=achance
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+    networks:
+      - achance-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  app3:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    volumes:
+      - ./src:/var/www
+      - ./docker/php/php.ini:/usr/local/etc/php/php.ini
+    environment:
+      - APP_INSTANCE=3
+      - PHP_OPCACHE_ENABLE=1
+      - PHP_OPCACHE_MEMORY_CONSUMPTION=512
+      - PHP_OPCACHE_MAX_ACCELERATED_FILES=50000
+      - PHP_OPCACHE_VALIDATE_TIMESTAMPS=0
+      - PHP_FPM_PM=dynamic
+      - PHP_FPM_PM_MAX_CHILDREN=50
+      - PHP_FPM_PM_START_SERVERS=10
+      - PHP_FPM_PM_MIN_SPARE_SERVERS=5
+      - PHP_FPM_PM_MAX_SPARE_SERVERS=20
+      - REDIS_HOST=redis-master
+      - REDIS_PORT=6379
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=achance
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+    networks:
+      - achance-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # Database with optimizations
+  mysql:
+    image: mysql:9.0
+    platform: linux/amd64
+    restart: always
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql/
+      - ./docker/mysql/mysql.cnf:/etc/mysql/conf.d/mysql.cnf
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: achance
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    networks:
+      - achance-network
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+    command: --innodb-buffer-pool-size=2G
+             --innodb-redo-log-capacity=512M
+             --max-connections=1000
+
+  # Redis Cluster for Caching and Sessions
+  redis-master:
+    image: redis:8.0
+    platform: linux/amd64
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_master_data:/data
+      - ./docker/redis/redis-master.conf:/usr/local/etc/redis/redis.conf
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    networks:
+      - achance-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  redis-slave:
+    image: redis:8.0
+    platform: linux/amd64
+    restart: always
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_slave_data:/data
+      - ./docker/redis/redis-slave.conf:/usr/local/etc/redis/redis.conf
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    depends_on:
+      - redis-master
+    networks:
+      - achance-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # Elasticsearch for search optimization
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - achance-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # Queue Worker for background processing
+  queue-worker:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    volumes:
+      - ./src:/var/www
+    environment:
+      - REDIS_HOST=redis-master
+      - REDIS_PORT=6379
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=achance
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+    command: php artisan queue:work --daemon --sleep=3 --tries=3 --max-time=3600
+    depends_on:
+      - redis-master
+      - mysql
+    networks:
+      - achance-network
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # Monitoring and Metrics
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - achance-network
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - achance-network
+
+  phpmyadmin:
+    image: phpmyadmin:5.2.2
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      - PMA_HOST=mysql
+      - PMA_USER=root
+      - PMA_PASSWORD=root
+    depends_on:
+      - mysql
+    networks:
+      - achance-network
+
+volumes:
+  db_data:
+  redis_master_data:
+  redis_slave_data:
+  elasticsearch_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  achance-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

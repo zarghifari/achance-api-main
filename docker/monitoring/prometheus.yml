@@ -1,0 +1,31 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'achance-api'
+    static_configs:
+      - targets: ['nginx-lb:80']
+    metrics_path: /metrics
+    scrape_interval: 30s
+
+  - job_name: 'nginx-metrics'
+    static_configs:
+      - targets: ['nginx-lb:80']
+    metrics_path: /nginx_status
+    scrape_interval: 15s
+
+  - job_name: 'mysql-metrics'
+    static_configs:
+      - targets: ['mysql:3306']
+    scrape_interval: 30s
+
+  - job_name: 'redis-metrics'
+    static_configs:
+      - targets: ['redis-master:6379', 'redis-slave:6379']
+    scrape_interval: 15s
+
+  - job_name: 'php-fpm-metrics'
+    static_configs:
+      - targets: ['app1:9000', 'app2:9000', 'app3:9000']
+    metrics_path: /fpm-status
+    scrape_interval: 15s

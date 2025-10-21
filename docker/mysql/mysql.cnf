@@ -1,0 +1,95 @@
+[mysql]
+port                           = 3306
+socket                         = /var/run/mysqld/mysqld.sock
+
+[mysqld]
+# Basic Settings
+port                           = 3306
+socket                         = /var/run/mysqld/mysqld.sock
+pid-file                       = /var/run/mysqld/mysqld.pid
+datadir                        = /var/lib/mysql
+tmpdir                         = /tmp
+skip-external-locking
+
+# Network Settings
+bind-address                   = 0.0.0.0
+max_connections                = 1000
+max_connect_errors             = 10000
+back_log                       = 512
+max_allowed_packet             = 256M
+
+# Memory Settings
+key_buffer_size                = 512M
+max_heap_table_size           = 256M
+tmp_table_size                = 256M
+sort_buffer_size              = 8M
+join_buffer_size              = 8M
+read_buffer_size              = 2M
+read_rnd_buffer_size          = 4M
+
+# InnoDB Settings (Critical for performance)
+innodb_buffer_pool_size       = 2G
+innodb_buffer_pool_instances  = 8
+innodb_log_file_size          = 256M
+innodb_log_buffer_size        = 64M
+innodb_flush_log_at_trx_commit = 2
+innodb_flush_method           = O_DIRECT
+innodb_file_per_table         = 1
+innodb_open_files             = 400
+innodb_io_capacity            = 400
+innodb_io_capacity_max        = 2000
+innodb_read_io_threads        = 8
+innodb_write_io_threads       = 8
+innodb_thread_concurrency     = 16
+innodb_lock_wait_timeout      = 120
+
+# Query Cache (Use with caution in modern MySQL)
+query_cache_type              = 1
+query_cache_size              = 256M
+query_cache_limit             = 32M
+
+# Thread Settings
+thread_cache_size             = 50
+thread_stack                  = 256K
+
+# Table Settings
+table_open_cache              = 4000
+table_definition_cache        = 2000
+
+# Logging
+slow_query_log                = 1
+slow_query_log_file           = /var/log/mysql/slow-query.log
+long_query_time               = 2
+log_queries_not_using_indexes = 1
+log_slow_admin_statements     = 1
+
+# Replication (if needed)
+server-id                     = 1
+log-bin                       = mysql-bin
+expire_logs_days              = 7
+max_binlog_size               = 100M
+
+# Security
+local-infile                  = 0
+
+# Character Set
+character-set-server          = utf8mb4
+collation-server              = utf8mb4_unicode_ci
+
+# Timeout Settings
+wait_timeout                  = 28800
+interactive_timeout           = 28800
+connect_timeout               = 60
+
+[mysqldump]
+quick
+quote-names
+max_allowed_packet            = 256M
+
+[mysql]
+default-character-set         = utf8mb4
+
+[client]
+default-character-set         = utf8mb4
+port                         = 3306
+socket                       = /var/run/mysqld/mysqld.sock

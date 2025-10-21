@@ -1,0 +1,64 @@
+# Catatan Command Docker & Laravel Development
+
+cd "d:\2_Backend\achance-api\src"; composer install
+
+## 1. Menjalankan Seluruh Layanan (Docker Compose)
+Jalankan semua container (app, nginx, mysql, redis, phpmyadmin):
+docker-compose up -d
+
+## 2. Mematikan Semua Container
+docker-compose down
+
+## 3. Melihat Status Container
+docker-compose ps
+
+## 4. Melihat Log Salah Satu Service (misal: app)
+docker-compose logs app
+
+
+
+
+Sebelum membuat command yang letaknya didalam docker, masuk terlebih dahulu dengan command dibawah ini
+
+## 5. Masuk ke Dalam Container app (untuk artisan, composer, dsb)
+docker-compose exec app bash
+
+## 6. Menjalankan Migrasi Database Laravel
+php artisan migrate
+php artisan migrate:fresh
+
+## 7. Menjalankan Seeder Laravel
+php artisan db:seed
+
+## 8. Menjalankan Migrasi + Seeder Sekaligus
+php artisan migrate --seed
+
+## 9. Menginstall Dependency Composer (jika perlu manual)
+composer install
+
+## 10. Menghapus Container, Network, dan Volume Sekaligus (bersih total)
+docker-compose down -v
+
+
+
+## 11. Build Ulang Image Docker (jika ada perubahan Dockerfile)
+docker-compose build app
+
+## 12. Restart Salah Satu Service (misal: nginx)
+docker-compose restart nginx
+
+## 13. Mengakses phpMyAdmin
+Buka browser ke: http://localhost:8080
+Login sesuai environment di docker-compose.yml
+
+## 14. Mengakses Aplikasi Laravel
+Buka browser ke: http://localhost
+
+## 15. Membersihkan Cache Laravel (opsional)
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+php artisan view:clear
+
+---
+Catatan: Semua command dijalankan dari folder root project (d:\2_Backend\achance-api)

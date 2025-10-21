@@ -1,0 +1,128 @@
+{
+  "title": "Programming Fundamentals Quiz",
+  "slug": "programming-fundamentals-quiz",
+  "summary": "A comprehensive quiz covering basic programming concepts",
+  "type": "assessment",
+  "content": "This quiz tests your understanding of programming fundamentals including variables, data types, control structures, and basic algorithms.",
+  "start_at": "2024-01-15T09:00:00Z",
+  "ends_at": "2024-01-30T23:59:59Z",
+  "questions": [
+    {
+      "question_number": 1,
+      "question_text": "Which of the following is a primitive data type in Java?",
+      "question_img": null,
+      "question_type": "multiple_choice",
+      "attachment": null,
+      "answers": [
+        {
+          "answer": "int",
+          "is_correct": true
+        },
+        {
+          "answer": "String",
+          "is_correct": false
+        },
+        {
+          "answer": "ArrayList",
+          "is_correct": false
+        },
+        {
+          "answer": "HashMap",
+          "is_correct": false
+        },
+        {
+          "answer": "Object",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "question_number": 2,
+      "question_text": "Object-oriented programming supports inheritance.",
+      "question_img": null,
+      "question_type": "true_false",
+      "attachment": null,
+      "answers": [
+        {
+          "answer": "True",
+          "is_correct": true
+        },
+        {
+          "answer": "False",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "question_number": 3,
+      "question_text": "Which of the following are valid loop types in programming? (Select all that apply)",
+      "question_img": null,
+      "question_type": "multiple_correct_choice",
+      "attachment": null,
+      "answers": [
+        {
+          "answer": "for loop",
+          "is_correct": true
+        },
+        {
+          "answer": "while loop",
+          "is_correct": true
+        },
+        {
+          "answer": "do-while loop",
+          "is_correct": true
+        },
+        {
+          "answer": "if loop",
+          "is_correct": false
+        },
+        {
+          "answer": "switch loop",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "question_number": 4,
+      "question_text": "Explain the difference between a class and an object in object-oriented programming.",
+      "question_img": null,
+      "question_type": "short_answer",
+      "attachment": null,
+      "answers": [
+        {
+          "answer": "A class is a blueprint or template that defines the structure and behavior of objects, while an object is an instance of a class that contains actual data and can perform actions defined by the class.",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "question_number": 5,
+      "question_text": "What is the output of the following code snippet?",
+      "question_img": "code_snippet_image.png",
+      "question_type": "multiple_choice",
+      "attachment": "code_example.txt",
+      "answers": [
+        {
+          "answer": "10",
+          "is_correct": false
+        },
+        {
+          "answer": "20",
+          "is_correct": true
+        },
+        {
+          "answer": "30",
+          "is_correct": false
+        },
+        {
+          "answer": "Error",
+          "is_correct": false
+        },
+        {
+          "answer": "null",
+          "is_correct": false
+        }
+      ]
+    }
+  ]
+}

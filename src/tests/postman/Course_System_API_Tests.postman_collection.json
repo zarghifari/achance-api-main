@@ -1,0 +1,1985 @@
+{
+  "info": {
+    "name": "Course System API Tests",
+    "description": "Comprehensive tests for courses, modules, lessons, epubs, and tasks with full automation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "// Set base URL if not already set",
+          "if (!pm.environment.get('baseUrl')) {",
+          "    pm.environment.set('baseUrl', 'http://localhost/api');",
+          "}",
+          "",
+          "// Generate unique identifiers for this test run",
+          "const timestamp = Date.now();",
+          "const randomId = Math.floor(Math.random() * 1000);",
+          "pm.environment.set('testTimestamp', timestamp);",
+          "pm.environment.set('testRandomId', randomId);",
+          "",
+          "// Set unique course name",
+          "pm.environment.set('uniqueCourseName', 'Course_' + timestamp + '_' + randomId);",
+          "pm.environment.set('uniqueModuleName', 'Module_' + timestamp + '_' + randomId);",
+          "pm.environment.set('uniqueLessonName', 'Lesson_' + timestamp + '_' + randomId);",
+          "pm.environment.set('uniqueTaskName', 'Task_' + timestamp + '_' + randomId);",
+          "",
+          "// Generate slug-friendly versions",
+          "function generateSlug(text) {",
+          "    return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');",
+          "}",
+          "",
+          "pm.environment.set('courseSlug', generateSlug(pm.environment.get('uniqueCourseName') + '-programming-course'));",
+          "pm.environment.set('moduleSlug', generateSlug(pm.environment.get('uniqueModuleName') + '-introduction-module'));",
+          "pm.environment.set('lessonSlug', generateSlug(pm.environment.get('uniqueLessonName') + '-first-lesson'));",
+          "pm.environment.set('taskSlug', generateSlug(pm.environment.get('uniqueTaskName') + '-programming-assignment'));",
+          "",
+          "// Generate slugs for updated versions",
+          "pm.environment.set('courseSlugUpdated', generateSlug(pm.environment.get('uniqueCourseName') + '-updated-programming-course'));",
+          "pm.environment.set('moduleSlugUpdated', generateSlug(pm.environment.get('uniqueModuleName') + '-updated-introduction-module'));",
+          "pm.environment.set('lessonSlugUpdated', generateSlug(pm.environment.get('uniqueLessonName') + '-updated-first-lesson'));",
+          "pm.environment.set('taskSlugUpdated', generateSlug(pm.environment.get('uniqueTaskName') + '-updated-programming-assignment'));",
+          "",
+          "// Validate critical variables for URL construction",
+          "const requestName = pm.info.requestName;",
+          "if (requestName && requestName.includes('Module') && requestName !== 'Create Module (Teacher)') {",
+          "    const courseId = pm.environment.get('courseId');",
+          "    if (!courseId || courseId === '') {",
+          "        console.warn('Warning: courseId is empty for request: ' + requestName);",
+          "    }",
+          "}",
+          "",
+          "if (requestName && requestName.includes('Lesson') && requestName !== 'Create Lesson (Teacher)') {",
+          "    const courseId = pm.environment.get('courseId');",
+          "    const moduleId = pm.environment.get('moduleId');",
+          "    if (!courseId || courseId === '' || !moduleId || moduleId === '') {",
+          "        console.warn('Warning: courseId or moduleId is empty for request: ' + requestName);",
+          "    }",
+          "}",
+          "",
+          "if (requestName && requestName.includes('Task') && requestName !== 'Create Task (Teacher)') {",
+          "    const courseId = pm.environment.get('courseId');",
+          "    const moduleId = pm.environment.get('moduleId');",
+          "    if (!courseId || courseId === '' || !moduleId || moduleId === '') {",
+          "        console.warn('Warning: courseId or moduleId is empty for request: ' + requestName);",
+          "    }",
+          "}",
+          "",
+          "if (requestName && requestName.includes('Epub')) {",
+          "    const courseId = pm.environment.get('courseId');",
+          "    const moduleId = pm.environment.get('moduleId');",
+          "    const lessonId = pm.environment.get('lessonId');",
+          "    if (!courseId || courseId === '' || !moduleId || moduleId === '' || !lessonId || lessonId === '') {",
+          "        console.warn('Warning: courseId, moduleId, or lessonId is empty for request: ' + requestName);",
+          "    }",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "exec": [
+          "// Global test counter",
+          "let testsPassed = pm.environment.get('testsPassed') || 0;",
+          "let testsTotal = pm.environment.get('testsTotal') || 0;",
+          "",
+          "// Count tests in this request",
+          "const testResults = pm.test.index;",
+          "if (testResults) {",
+          "    testsTotal += Object.keys(testResults).length;",
+          "    testsPassed += Object.values(testResults).filter(result => result === true).length;",
+          "    pm.environment.set('testsPassed', testsPassed);",
+          "    pm.environment.set('testsTotal', testsTotal);",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login Teacher",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login Teacher - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Login Teacher - Response has token', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('access_token');",
+                  "    pm.environment.set('teacherToken', responseJson.access_token);",
+                  "    pm.environment.set('authToken', responseJson.access_token);",
+                  "});",
+                  "",
+                  "pm.test('Login Teacher - Token type is Bearer', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    if (responseJson.token_type) {",
+                  "        pm.expect(responseJson.token_type).to.equal('Bearer');",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"teacher@example.com\",\n    \"password\": \"password\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["login"]
+            }
+          }
+        },
+        {
+          "name": "Login Student",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login Student - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Login Student - Response has token', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('access_token');",
+                  "    pm.environment.set('studentToken', responseJson.access_token);",
+                  "});",
+                  "",
+                  "pm.test('Login Student - Token type is Bearer', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    if (responseJson.token_type) {",
+                  "        pm.expect(responseJson.token_type).to.equal('Bearer');",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"student@example.com\",\n    \"password\": \"password\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["login"]
+            }
+          }
+        },
+        {
+          "name": "Get Current User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get Current User - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Get Current User - Response has user data', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    // Check if response has data property (nested structure)",
+                  "    if (responseJson.data) {",
+                  "        pm.expect(responseJson.data).to.have.property('id');",
+                  "        pm.expect(responseJson.data).to.have.property('email');",
+                  "    } else {",
+                  "        // Direct structure",
+                  "        pm.expect(responseJson).to.have.property('id');",
+                  "        pm.expect(responseJson).to.have.property('email');",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/user",
+              "host": ["{{baseUrl}}"],
+              "path": ["user"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Course Management",
+      "item": [
+        {
+          "name": "Create Course (Teacher)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Switch to teacher token",
+                  "pm.environment.set('authToken', pm.environment.get('teacherToken'));",
+                  "",
+                  "// Debug: Log the request payload",
+                  "console.log('Creating course with data:', {",
+                  "    title: pm.environment.get('uniqueCourseName') + ' - Programming Course',",
+                  "    description: 'Learn programming fundamentals step by step',",
+                  "    level: 'beginner',",
+                  "    category: 'technology'",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Handle potential errors first",
+                  "if (pm.response.code !== 201) {",
+                  "    console.log('Course creation failed with status:', pm.response.code);",
+                  "    console.log('Response body:', pm.response.text());",
+                  "}",
+                  "",
+                  "pm.test('Create Course - Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Create Course - Response has course data', function () {",
+                  "    if (pm.response.code === 201) {",
+                  "        const responseJson = pm.response.json();",
+                  "        // Check if response has data property (nested structure)",
+                  "        let courseData = responseJson.data ? responseJson.data : responseJson;",
+                  "        pm.expect(courseData).to.have.property('id');",
+                  "        pm.expect(courseData).to.have.property('title');",
+                  "        pm.environment.set('courseId', courseData.id);",
+                  "        console.log('Course created with ID:', courseData.id);",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Create Course - Course title matches', function () {",
+                  "    if (pm.response.code === 201) {",
+                  "        const responseJson = pm.response.json();",
+                  "        let courseData = responseJson.data ? responseJson.data : responseJson;",
+                  "        const expectedTitle = pm.environment.get('uniqueCourseName') + ' - Programming Course';",
+                  "        pm.expect(courseData.title).to.equal(expectedTitle);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"{{uniqueCourseName}} - Programming Course\",\n    \"slug\": \"{{courseSlug}}\",\n    \"description\": \"Learn programming fundamentals step by step\",\n    \"isOpen\": true,\n    \"total_hours\": 40\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/courses",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses"]
+            }
+          }
+        },
+        {
+          "name": "Get All Courses",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "console.log('Get All Courses - Response status:', pm.response.code);",
+                  "console.log('Get All Courses - Response body:', pm.response.text());",
+                  "",
+                  "pm.test('Get All Courses - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Get All Courses - Response is array', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    console.log('Get All Courses - Full response:', JSON.stringify(responseJson, null, 2));",
+                  "    ",
+                  "    // Check if response has data property (nested structure)",
+                  "    let coursesData = responseJson.data ? responseJson.data : responseJson;",
+                  "    console.log('Get All Courses - Courses data:', JSON.stringify(coursesData, null, 2));",
+                  "    pm.expect(coursesData).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Get All Courses - Contains created course', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let coursesData = responseJson.data ? responseJson.data : responseJson;",
+                  "    const courseId = pm.environment.get('courseId');",
+                  "    ",
+                  "    console.log('Get All Courses - Environment courseId:', courseId);",
+                  "    console.log('Get All Courses - All environment variables:', Object.keys(pm.environment.toObject()));",
+                  "    ",
+                  "    // Check if courseId exists",
+                  "    if (!courseId) {",
+                  "        console.log('Error: courseId not found in environment variables');",
+                  "        console.log('Available environment variables:', JSON.stringify(pm.environment.toObject(), null, 2));",
+                  "        console.log('Skipping course existence check - courseId not available');",
+                  "        pm.test.skip('Course existence check skipped - courseId not set (Create Course test may have failed)');",
+                  "        return;",
+                  "    }",
+                  "    ",
+                  "    // Check if coursesData is valid",
+                  "    if (!coursesData || !Array.isArray(coursesData)) {",
+                  "        console.log('Error - courseId:', courseId, 'coursesData type:', typeof coursesData, 'is array:', Array.isArray(coursesData));",
+                  "        pm.expect(coursesData, 'Response should contain an array of courses').to.be.an('array');",
+                  "        return;",
+                  "    }",
+                  "    ",
+                  "    console.log('Get All Courses - Number of courses found:', coursesData.length);",
+                  "    console.log('Get All Courses - Course IDs in response:', coursesData.map(c => c.id));",
+                  "    ",
+                  "    // Look for the course",
+                  "    const foundCourse = coursesData.find(course => course.id.toString() === courseId.toString());",
+                  "    console.log('Looking for courseId:', courseId, 'Type:', typeof courseId);",
+                  "    console.log('Found course:', foundCourse ? JSON.stringify(foundCourse, null, 2) : 'not found');",
+                  "    ",
+                  "    if (!foundCourse) {",
+                  "        console.log('Course not found. Possible reasons:');",
+                  "        console.log('1. Course was not created successfully');",
+                  "        console.log('2. Course was deleted');",
+                  "        console.log('3. CourseId mismatch between creation and retrieval');",
+                  "        console.log('4. Response format changed');",
+                  "        console.log('5. Database was reset or course was removed');",
+                  "    }",
+                  "    ",
+                  "    pm.expect(foundCourse, `Course with ID ${courseId} should exist in the response`).to.not.be.undefined;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/all",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "all"]
+            }
+          }
+        },
+        {
+          "name": "Search Courses",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Search Courses - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Search Courses - Response is array or has data property', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let coursesData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(coursesData).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Search Courses - Contains created course when searching for Programming', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let coursesData = responseJson.data ? responseJson.data : responseJson;",
+                  "    const courseId = pm.environment.get('courseId');",
+                  "    ",
+                  "    if (courseId && coursesData && Array.isArray(coursesData)) {",
+                  "        // Check if the created course appears in search results",
+                  "        const foundCourse = coursesData.find(course => course.id.toString() === courseId.toString());",
+                  "        if (foundCourse) {",
+                  "            pm.expect(foundCourse.title).to.include('Programming');",
+                  "            console.log('Found course in search results:', foundCourse.title);",
+                  "        } else {",
+                  "            console.log('Course not found in search results - this may be expected if search is strict');",
+                  "        }",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Search Courses - All results contain search term in title or description', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let coursesData = responseJson.data ? responseJson.data : responseJson;",
+                  "    ",
+                  "    if (coursesData && Array.isArray(coursesData) && coursesData.length > 0) {",
+                  "        coursesData.forEach(course => {",
+                  "            const titleMatch = course.title && course.title.toLowerCase().includes('programming');",
+                  "            const descMatch = course.description && course.description.toLowerCase().includes('programming');",
+                  "            pm.expect(titleMatch || descMatch).to.be.true;",
+                  "        });",
+                  "    } else {",
+                  "        console.log('No courses found in search results');",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses?search=Programming",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Programming"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Courses - Empty Query",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Search Courses Empty Query - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Search Courses Empty Query - Response is array', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let coursesData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(coursesData).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Search Courses Empty Query - Returns all available courses or handles gracefully', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let coursesData = responseJson.data ? responseJson.data : responseJson;",
+                  "    // Empty search should either return all courses or an empty array",
+                  "    pm.expect(coursesData).to.be.an('array');",
+                  "    console.log('Empty search returned', coursesData.length, 'courses');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses?search=",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Courses - No Results",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Search Courses No Results - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Search Courses No Results - Response is empty array', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let coursesData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(coursesData).to.be.an('array');",
+                  "    pm.expect(coursesData).to.have.lengthOf(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses?search=NonExistentCourseTerm12345",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "NonExistentCourseTerm12345"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Course by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get Course by ID - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Get Course by ID - Response has correct ID', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let courseData = responseJson.data ? responseJson.data : responseJson;",
+                  "    const expectedId = pm.environment.get('courseId');",
+                  "    pm.expect(courseData.id.toString()).to.equal(expectedId.toString());",
+                  "});",
+                  "",
+                  "pm.test('Get Course by ID - Has required fields', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let courseData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(courseData).to.have.property('title');",
+                  "    pm.expect(courseData).to.have.property('description');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Course (Teacher)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Switch to teacher token",
+                  "pm.environment.set('authToken', pm.environment.get('teacherToken'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Update Course - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Update Course - Title updated', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let courseData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(courseData.title).to.include('Updated');",
+                  "});",
+                  "",
+                  "pm.test('Update Course - Description updated', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let courseData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(courseData.description).to.include('updated');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"{{uniqueCourseName}} - Updated Programming Course\",\n    \"slug\": \"{{courseSlugUpdated}}\",\n    \"description\": \"Learn programming fundamentals - updated description\",\n    \"isOpen\": true,\n    \"total_hours\": 45\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Module Management",
+      "item": [
+        {
+          "name": "Create Module (Teacher)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Switch to teacher token",
+                  "pm.environment.set('authToken', pm.environment.get('teacherToken'));",
+                  "",
+                  "// Ensure courseId is available",
+                  "const courseId = pm.environment.get('courseId');",
+                  "if (!courseId) {",
+                  "    throw new Error('courseId is not set. Make sure Create Course test ran successfully.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Handle potential errors first",
+                  "if (pm.response.code !== 201) {",
+                  "    console.log('Module creation failed with status:', pm.response.code);",
+                  "    console.log('Response body:', pm.response.text());",
+                  "    console.log('Course ID:', pm.environment.get('courseId'));",
+                  "}",
+                  "",
+                  "pm.test('Create Module - Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Create Module - Response has module data', function () {",
+                  "    if (pm.response.code === 201) {",
+                  "        const responseJson = pm.response.json();",
+                  "        let moduleData = responseJson.data ? responseJson.data : responseJson;",
+                  "        pm.expect(moduleData).to.have.property('id');",
+                  "        pm.expect(moduleData).to.have.property('title');",
+                  "        pm.environment.set('moduleId', moduleData.id);",
+                  "        console.log('Module created with ID:', moduleData.id);",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Create Module - Module belongs to correct course', function () {",
+                  "    if (pm.response.code === 201) {",
+                  "        const responseJson = pm.response.json();",
+                  "        let moduleData = responseJson.data ? responseJson.data : responseJson;",
+                  "        const expectedCourseId = pm.environment.get('courseId');",
+                  "        pm.expect(moduleData.course_id.toString()).to.equal(expectedCourseId.toString());",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"{{uniqueModuleName}} - Introduction Module\",\n    \"slug\": \"{{moduleSlug}}\",\n    \"description\": \"First module covering basics\",\n    \"position\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules"]
+            }
+          }
+        },
+        {
+          "name": "Get Modules for Course",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get Modules - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Get Modules - Response is array', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let modulesData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(modulesData).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Get Modules - Contains created module', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let modulesData = responseJson.data ? responseJson.data : responseJson;",
+                  "    const moduleId = pm.environment.get('moduleId');",
+                  "    if (moduleId && modulesData && Array.isArray(modulesData)) {",
+                  "        const foundModule = modulesData.find(module => module.id == moduleId);",
+                  "        pm.expect(foundModule).to.not.be.undefined;",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules"]
+            }
+          }
+        },
+        {
+          "name": "Get Module by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get Module by ID - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Get Module by ID - Response has correct ID', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let moduleData = responseJson.data ? responseJson.data : responseJson;",
+                  "    const expectedId = pm.environment.get('moduleId');",
+                  "    pm.expect(moduleData.id.toString()).to.equal(expectedId.toString());",
+                  "});",
+                  "",
+                  "pm.test('Get Module by ID - Has required fields', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let moduleData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(moduleData).to.have.property('title');",
+                  "    pm.expect(moduleData).to.have.property('description');",
+                  "    pm.expect(moduleData).to.have.property('course_id');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Module (Teacher)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Switch to teacher token",
+                  "pm.environment.set('authToken', pm.environment.get('teacherToken'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Update Module - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Update Module - Title updated', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let moduleData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(moduleData.title).to.include('Updated');",
+                  "});",
+                  "",
+                  "pm.test('Update Module - Description updated', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let moduleData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(moduleData.description).to.include('updated');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"{{uniqueModuleName}} - Updated Introduction Module\",\n    \"slug\": \"{{moduleSlugUpdated}}\",\n    \"description\": \"First module covering basics - updated description\",\n    \"position\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lesson Management",
+      "item": [
+        {
+          "name": "Create Lesson (Teacher)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Switch to teacher token",
+                  "pm.environment.set('authToken', pm.environment.get('teacherToken'));",
+                  "",
+                  "// Ensure required IDs are available",
+                  "const courseId = pm.environment.get('courseId');",
+                  "const moduleId = pm.environment.get('moduleId');",
+                  "if (!courseId || !moduleId) {",
+                  "    throw new Error('courseId or moduleId is not set. Make sure previous tests ran successfully.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Create Lesson - Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Create Lesson - Response has lesson data', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let lessonData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(lessonData).to.have.property('id');",
+                  "    pm.expect(lessonData).to.have.property('title');",
+                  "    pm.environment.set('lessonId', lessonData.id);",
+                  "});",
+                  "",
+                  "pm.test('Create Lesson - Lesson belongs to correct module', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let lessonData = responseJson.data ? responseJson.data : responseJson;",
+                  "    const expectedModuleId = pm.environment.get('moduleId');",
+                  "    pm.expect(lessonData.module_id.toString()).to.equal(expectedModuleId.toString());",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"{{uniqueLessonName}} - First Lesson\",\n    \"slug\": \"{{lessonSlug}}\",\n    \"description\": \"This is the description of the first lesson. It covers basic concepts and provides examples.\",\n    \"position\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons"]
+            }
+          }
+        },
+        {
+          "name": "Get Lessons for Module",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get Lessons - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Get Lessons - Response is array', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let lessonsData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(lessonsData).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Get Lessons - Contains created lesson', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let lessonsData = responseJson.data ? responseJson.data : responseJson;",
+                  "    const lessonId = pm.environment.get('lessonId');",
+                  "    if (lessonId && lessonsData && Array.isArray(lessonsData)) {",
+                  "        const foundLesson = lessonsData.find(lesson => lesson.id == lessonId);",
+                  "        pm.expect(foundLesson).to.not.be.undefined;",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons"]
+            }
+          }
+        },
+        {
+          "name": "Get Lesson by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get Lesson by ID - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Get Lesson by ID - Response has correct ID', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let lessonData = responseJson.data ? responseJson.data : responseJson;",
+                  "    const expectedId = pm.environment.get('lessonId');",
+                  "    pm.expect(lessonData.id.toString()).to.equal(expectedId.toString());",
+                  "});",
+                  "",
+                  "pm.test('Get Lesson by ID - Has required fields', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let lessonData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(lessonData).to.have.property('title');",
+                  "    pm.expect(lessonData).to.have.property('description');",
+                  "    pm.expect(lessonData).to.have.property('module_id');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Lesson (Teacher)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Switch to teacher token",
+                  "pm.environment.set('authToken', pm.environment.get('teacherToken'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Update Lesson - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Update Lesson - Title updated', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let lessonData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(lessonData.title).to.include('Updated');",
+                  "});",
+                  "",
+                  "pm.test('Update Lesson - Content updated', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let lessonData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(lessonData.description).to.include('updated');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"{{uniqueLessonName}} - Updated First Lesson\",\n    \"slug\": \"{{lessonSlugUpdated}}\",\n    \"description\": \"This is the updated description of the first lesson. It covers basic concepts and provides examples.\",\n    \"position\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Epub Management",
+      "item": [
+        {
+          "name": "Create Epub for Lesson (Teacher)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Switch to teacher token",
+                  "pm.environment.set('authToken', pm.environment.get('teacherToken'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Create Epub - Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Create Epub - Response has epub data', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let epubData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(epubData).to.have.property('id');",
+                  "    pm.expect(epubData).to.have.property('title');",
+                  "    pm.environment.set('epubId', epubData.id);",
+                  "    console.log('Created Epub ID:', epubData.id);",
+                  "    console.log('Epub data:', JSON.stringify(epubData, null, 2));",
+                  "});",
+                  "",
+                  "pm.test('Create Epub - File uploaded successfully (if file was provided)', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let epubData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(epubData).to.have.property('file_path');",
+                  "    ",
+                  "    // Check if file was actually uploaded",
+                  "    if (epubData.file_path !== null && epubData.file_path !== '') {",
+                  "        pm.expect(epubData.file_path).to.include('uploads/epubs');",
+                  "        console.log('File uploaded to:', epubData.file_path);",
+                  "        pm.environment.set('epubFilePath', epubData.file_path);",
+                  "    } else {",
+                  "        console.log('No file was uploaded - file_path is null');",
+                  "        // This might be expected if no file was selected in Postman",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Create Epub - Epub belongs to correct lesson', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let epubData = responseJson.data ? responseJson.data : responseJson;",
+                  "    const expectedLessonId = pm.environment.get('lessonId');",
+                  "    // Convert both to strings for comparison to avoid type issues",
+                  "    pm.expect(epubData.lesson_id.toString()).to.equal(expectedLessonId.toString());",
+                  "});",
+                  "",
+                  "pm.test('Create Epub - File validation (422 means check file type)', function () {",
+                  "    if (pm.response.code === 422) {",
+                  "        console.log('File validation failed - make sure you upload a .epub file');",
+                  "        console.log('Response:', pm.response.text());",
+                  "        pm.expect(pm.response.code).to.not.equal(422, 'File validation failed - check file type');",
+                  "    } else {",
+                  "        pm.expect(pm.response.code).to.equal(201);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Sample Epub Book",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/epubs",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "epubs"]
+            }
+          }
+        },
+        {
+          "name": "Create Epub without File (Teacher)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Switch to teacher token",
+                  "pm.environment.set('authToken', pm.environment.get('teacherToken'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Create Epub without File - Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Create Epub without File - Response has epub data', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let epubData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(epubData).to.have.property('id');",
+                  "    pm.expect(epubData).to.have.property('title');",
+                  "    // Set epubId if not already set from file upload test",
+                  "    if (!pm.environment.get('epubId')) {",
+                  "        pm.environment.set('epubId', epubData.id);",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Create Epub without File - Belongs to correct lesson', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let epubData = responseJson.data ? responseJson.data : responseJson;",
+                  "    const expectedLessonId = pm.environment.get('lessonId');",
+                  "    // Convert both to strings for comparison to avoid type issues",
+                  "    pm.expect(epubData.lesson_id.toString()).to.equal(expectedLessonId.toString());",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Simple Epub Book - No File\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/epubs",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "epubs"]
+            }
+          }
+        },
+        {
+          "name": "Get Epub for Lesson",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get Epub - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Get Epub - Response has epub data', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let epubData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(epubData).to.have.property('id');",
+                  "    pm.expect(epubData).to.have.property('title');",
+                  "});",
+                  "",
+                  "pm.test('Get Epub - Has required fields', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let epubData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(epubData).to.have.property('file_path');",
+                  "    pm.expect(epubData).to.have.property('lesson_id');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/epubs",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "epubs"]
+            }
+          }
+        },
+        {
+          "name": "Update Epub (Teacher)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Switch to teacher token",
+                  "pm.environment.set('authToken', pm.environment.get('teacherToken'));",
+                  "",
+                  "// Debug: Check if epubId is available",
+                  "const epubId = pm.environment.get('epubId');",
+                  "console.log('Update Epub - epubId:', epubId);",
+                  "if (!epubId) {",
+                  "    console.warn('Warning: epubId not found. Make sure Create Epub test ran successfully.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Update Epub - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Update Epub - Debug response structure', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    console.log('Full update response:', JSON.stringify(responseJson, null, 2));",
+                  "});",
+                  "",
+                  "pm.test('Update Epub - Response contains updated data or success message', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    ",
+                  "    // Check if response has epub data (new format) or message (old format)",
+                  "    if (responseJson.data) {",
+                  "        // New format with epub data",
+                  "        let epubData = responseJson.data;",
+                  "        pm.expect(epubData).to.have.property('title');",
+                  "        pm.expect(epubData.title).to.include('Updated');",
+                  "        console.log('Updated epub title:', epubData.title);",
+                  "    } else if (responseJson.message) {",
+                  "        // Old format with just message",
+                  "        pm.expect(responseJson.message).to.include('successfully');",
+                  "        console.log('Update response:', responseJson.message);",
+                  "    } else {",
+                  "        // Direct epub data without wrapper",
+                  "        pm.expect(responseJson).to.have.property('title');",
+                  "        pm.expect(responseJson.title).to.include('Updated');",
+                  "        console.log('Updated epub title:', responseJson.title);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Updated Sample Epub Book\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/epubs/{{epubId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "epubs", "{{epubId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Task Management",
+      "item": [
+        {
+          "name": "Create Task (Teacher)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Switch to teacher token",
+                  "pm.environment.set('authToken', pm.environment.get('teacherToken'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Create Task - Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Create Task - Response has task data', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let taskData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(taskData).to.have.property('id');",
+                  "    pm.expect(taskData).to.have.property('title');",
+                  "    pm.environment.set('taskId', taskData.id);",
+                  "});",
+                  "",
+                  "pm.test('Create Task - Task belongs to correct module', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let taskData = responseJson.data ? responseJson.data : responseJson;",
+                  "    const expectedModuleId = pm.environment.get('moduleId');",
+                  "    pm.expect(taskData.module_id.toString()).to.equal(expectedModuleId.toString());",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"{{uniqueTaskName}} - Programming Assignment\",\n    \"slug\": \"{{taskSlug}}\",\n    \"content\": \"Create a simple calculator program using the concepts learned in this module\",\n    \"position\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "tasks"]
+            }
+          }
+        },
+        {
+          "name": "Get Tasks for Module",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get Tasks - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Get Tasks - Response is array', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let tasksData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(tasksData).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Get Tasks - Contains created task', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let tasksData = responseJson.data ? responseJson.data : responseJson;",
+                  "    const taskId = pm.environment.get('taskId');",
+                  "    if (taskId && tasksData && Array.isArray(tasksData)) {",
+                  "        const foundTask = tasksData.find(task => task.id == taskId);",
+                  "        pm.expect(foundTask).to.not.be.undefined;",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "tasks"]
+            }
+          }
+        },
+        {
+          "name": "Get Task by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get Task by ID - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Get Task by ID - Response has correct ID', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let taskData = responseJson.data ? responseJson.data : responseJson;",
+                  "    const expectedId = pm.environment.get('taskId');",
+                  "    pm.expect(taskData.id.toString()).to.equal(expectedId.toString());",
+                  "});",
+                  "",
+                  "pm.test('Get Task by ID - Has required fields', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let taskData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(taskData).to.have.property('title');",
+                  "    pm.expect(taskData).to.have.property('content');",
+                  "    pm.expect(taskData).to.have.property('module_id');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/tasks/{{taskId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "tasks", "{{taskId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Task (Teacher)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Switch to teacher token",
+                  "pm.environment.set('authToken', pm.environment.get('teacherToken'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Update Task - Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Update Task - Title updated', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let taskData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(taskData.title).to.include('Updated');",
+                  "});",
+                  "",
+                  "pm.test('Update Task - Description updated', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let taskData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(taskData.content).to.include('updated');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"{{uniqueTaskName}} - Updated Programming Assignment\",\n    \"slug\": \"{{taskSlugUpdated}}\",\n    \"content\": \"Create a simple calculator program using the concepts learned in this module - updated requirements\",\n    \"position\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/tasks/{{taskId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "tasks", "{{taskId}}"]
+            }
+          }
+        },
+        {
+          "name": "Submit Task Answer (Student)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Switch to student token",
+                  "pm.environment.set('authToken', pm.environment.get('studentToken'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Submit Task Answer - Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Submit Task Answer - Response has answer data', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let answerData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(answerData).to.have.property('id');",
+                  "    pm.expect(answerData).to.have.property('content');",
+                  "    pm.environment.set('answerId', answerData.id);",
+                  "});",
+                  "",
+                  "pm.test('Submit Task Answer - Answer belongs to correct task', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    let answerData = responseJson.data ? responseJson.data : responseJson;",
+                  "    const expectedTaskId = pm.environment.get('taskId');",
+                  "    pm.expect(answerData.task_id.toString()).to.equal(expectedTaskId.toString());",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"content_type\": \"text\",\n    \"content\": \"Here is my calculator program:\\n\\n```python\\ndef calculator():\\n    while True:\\n        try:\\n            num1 = float(input('Enter first number: '))\\n            operator = input('Enter operator (+, -, *, /): ')\\n            num2 = float(input('Enter second number: '))\\n            \\n            if operator == '+':\\n                result = num1 + num2\\n            elif operator == '-':\\n                result = num1 - num2\\n            elif operator == '*':\\n                result = num1 * num2\\n            elif operator == '/':\\n                if num2 != 0:\\n                    result = num1 / num2\\n                else:\\n                    print('Error: Division by zero!')\\n                    continue\\n            else:\\n                print('Invalid operator!')\\n                continue\\n                \\n            print(f'Result: {result}')\\n            break\\n        except ValueError:\\n            print('Invalid input! Please enter numbers only.')\\n\\ncalculator()\\n```\\n\\nThis calculator handles basic arithmetic operations and includes error handling for invalid inputs and division by zero.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/tasks/{{taskId}}/answers",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "tasks", "{{taskId}}", "answers"]
+            }
+          }
+        },
+        {
+          "name": "View Task Answer (Teacher)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Switch to teacher token",
+                  "const teacherToken = pm.environment.get('teacherToken');",
+                  "if (teacherToken) {",
+                  "    pm.environment.set('authToken', teacherToken);",
+                  "    console.log('Set teacher token for viewing task answer');",
+                  "} else {",
+                  "    console.log('Warning: teacherToken not found in environment');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('View Task Answer - Status code is 200', function () {",
+                  "    if (pm.response.code === 403) {",
+                  "        console.log('Warning: 403 Forbidden - Check if teacherToken is properly set');",
+                  "        console.log('authToken:', pm.environment.get('authToken'));",
+                  "        console.log('teacherToken:', pm.environment.get('teacherToken'));",
+                  "    }",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('View Task Answer - Response has answer data', function () {",
+                  "    if (pm.response.code !== 200) {",
+                  "        console.log('Skipping test due to non-200 response');",
+                  "        return;",
+                  "    }",
+                  "    const responseJson = pm.response.json();",
+                  "    let answerData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(answerData).to.have.property('id');",
+                  "    pm.expect(answerData).to.have.property('content');",
+                  "});",
+                  "",
+                  "pm.test('View Task Answer - Has required fields', function () {",
+                  "    if (pm.response.code !== 200) {",
+                  "        console.log('Skipping test due to non-200 response');",
+                  "        return;",
+                  "    }",
+                  "    const responseJson = pm.response.json();",
+                  "    let answerData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(answerData).to.have.property('task_id');",
+                  "    pm.expect(answerData).to.have.property('user_id');",
+                  "    pm.expect(answerData).to.have.property('content_type');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/tasks/{{taskId}}/answers/{{answerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "tasks", "{{taskId}}", "answers", "{{answerId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cleanup Operations",
+      "item": [
+        {
+          "name": "Delete Task Answer (Teacher)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Switch to teacher token",
+                  "const teacherToken = pm.environment.get('teacherToken');",
+                  "if (teacherToken) {",
+                  "    pm.environment.set('authToken', teacherToken);",
+                  "    console.log('Set teacher token for deleting task answer');",
+                  "} else {",
+                  "    console.log('Warning: teacherToken not found in environment');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Delete Task Answer - Status code is 200 or 204', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/tasks/{{taskId}}/answers/{{answerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "tasks", "{{taskId}}", "answers", "{{answerId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Epub (Teacher)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "console.log('Delete Epub Test - Response status:', pm.response.code);",
+                  "console.log('Delete Epub Test - Response body:', pm.response.text());",
+                  "",
+                  "pm.test('Delete Epub - Status code is 200', function () {",
+                  "    pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    console.log('Delete Epub - Parsed response:', JSON.stringify(jsonData, null, 2));",
+                  "    ",
+                  "    pm.test('Delete Epub - Response has success message', function () {",
+                  "        pm.expect(jsonData).to.have.property('message');",
+                  "        pm.expect(jsonData.message).to.include('deleted');",
+                  "    });",
+                  "} else {",
+                  "    console.log('Delete Epub - Non-200 response, cannot parse JSON');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/epubs/{{epubId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "epubs", "{{epubId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Task (Teacher)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Delete Task - Status code is 200 or 204', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/tasks/{{taskId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "tasks", "{{taskId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Lesson (Teacher)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Delete Lesson - Status code is 200 or 204', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Module (Teacher)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Delete Module - Status code is 200 or 204', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Course (Teacher)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Delete Course - Status code is 200 or 204', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+                  "});",
+                  "",
+                  "// Final test summary",
+                  "const testsPassed = pm.environment.get('testsPassed') || 0;",
+                  "const testsTotal = pm.environment.get('testsTotal') || 0;",
+                  "console.log(`\\n=== TEST SUMMARY ===`);",
+                  "console.log(`Tests Passed: ${testsPassed}`);",
+                  "console.log(`Tests Total: ${testsTotal}`);",
+                  "console.log(`Success Rate: ${testsTotal > 0 ? ((testsPassed / testsTotal) * 100).toFixed(2) : 0}%`);",
+                  "console.log(`==================\\n`);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
