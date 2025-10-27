@@ -57,7 +57,7 @@ class QuizBulkImportController extends Controller
                 // Clean up temporary file
                 Storage::delete($tempPath);
 
-                return new QuizBulkImportResource($result);
+                return (new QuizBulkImportResource($result))->response();
             }
 
             // Process asynchronously for large files

@@ -47,6 +47,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/courses/all', [CourseController::class, 'getList']);
     Route::get('/courses', [CourseController::class, 'search']);
     Route::get('/courses/{course_id}', [CourseController::class, 'get'])->where('id', '[0-9]+');
+    Route::get('/courses/{course_id}/with-navigation', [CourseController::class, 'getWithNavigation'])->where('id', '[0-9]+');
     Route::put('/courses/{course_id}', [CourseController::class, 'update'])->where('id', '[0-9]+');
     Route::delete('/courses/{course_id}', [CourseController::class, 'delete'])->where('id', '[0-9]+');
 
@@ -62,12 +63,16 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/lessons', [LessonController::class, 'listByModule']);
             Route::get('/lessons/{lesson_id}', [LessonController::class, 'get']);
             Route::get('/lessons/{lesson_id}/recent', [LessonController::class, 'getRecent']);
+            Route::get('/lessons/{lesson_id}/epub-info', [LessonController::class, 'getEpubInfo']);
+            Route::post('/lessons/{lesson_id}/epub-version-check', [LessonController::class, 'checkEpubVersion']);
+            Route::post('/lessons/{lesson_id}/epub-reading-progress', [LessonController::class, 'trackEpubProgress'])->where('lesson_id', '[0-9]+');
             Route::put('/lessons/{lesson_id}', [LessonController::class, 'update'])->where('lesson_id', '[0-9]+');
             Route::delete('/lessons/{lesson_id}', [LessonController::class, 'delete'])->where('lesson_id', '[0-9]+');
 
             Route::prefix('lessons/{lesson_id}')->where(['lesson_id' => '[0-9]+'])->group(function () {
                 Route::post('/epubs', [EpubController::class, 'create']);
                 Route::get('/epubs', [EpubController::class, 'get']);
+                Route::get('/epubs/{epub_id}/download', [EpubController::class, 'download'])->where('epub_id', '[0-9]+');
                 Route::put('/epubs/{epub_id}', [EpubController::class, 'update'])->where('epub_id', '[0-9]+');
                 Route::delete('/epubs/{epub_id}', [EpubController::class, 'delete'])->where('epub_id', '[0-9]+');
             });
@@ -138,6 +143,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/useractivities', [UserActivityController::class, 'addUserActivity']);
     Route::get('/useractivities', [UserActivityController::class, 'getUserActivity']);
+    Route::get('/useractivities/analytics', [UserActivityController::class, 'getAnalytics']);
 
     // Performance Dashboard Routes
     Route::prefix('performance')->group(function () {

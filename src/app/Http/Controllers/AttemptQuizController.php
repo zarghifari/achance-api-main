@@ -48,6 +48,34 @@ class AttemptQuizController extends Controller
                 
                 $attemptQuiz = AttemptQuiz::create($data);
                 
+                // Track quiz start activity
+                try {
+                    \App\Models\UserActivity::create([
+                        'user_id' => $request->user()->id,
+                        'activity_type' => \App\Models\UserActivity::TYPE_QUIZ,
+                        'activity_id' => $quiz_id,
+                        'action' => \App\Models\UserActivity::ACTION_START,
+                        'last_seen_url' => $request->fullUrl(),
+                        'last_seen_at' => now(),
+                        'started_at' => $data['started_at'],
+                        'metadata' => [
+                            'quiz_title' => $quiz->title,
+                            'attempt_id' => $attemptQuiz->id,
+                            'quiz_duration' => $quiz->duration,
+                            'total_questions' => $quiz->questions()->count(),
+                        ],
+                        'device_type' => $this->detectDeviceType($request),
+                        'user_agent' => $request->header('User-Agent'),
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to track quiz start activity', [
+                        'quiz_id' => $quiz_id,
+                        'attempt_id' => $attemptQuiz->id,
+                        'user_id' => $request->user()->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+                
                 // Invalidate cache
                 QuizCacheService::invalidateUserAttemptCache($request->user()->id, $quiz_id);
                 
@@ -463,6 +491,42 @@ class AttemptQuizController extends Controller
                 'correct_answers' => $scoreResult['correct_answers']
             ]);
 
+            // Track quiz completion activity
+            try {
+                $duration = $attempt->started_at ? now()->diffInSeconds($attempt->started_at) : null;
+                
+                \App\Models\UserActivity::create([
+                    'user_id' => $request->user()->id,
+                    'activity_type' => \App\Models\UserActivity::TYPE_QUIZ,
+                    'activity_id' => $quiz_id,
+                    'action' => \App\Models\UserActivity::ACTION_COMPLETE,
+                    'last_seen_url' => $request->fullUrl(),
+                    'last_seen_at' => now(),
+                    'started_at' => $attempt->started_at,
+                    'completed_at' => now(),
+                    'duration_seconds' => $duration,
+                    'progress_percentage' => 100,
+                    'metadata' => [
+                        'quiz_title' => $quiz->title,
+                        'attempt_id' => $attempt_id,
+                        'score' => $scoreResult['score'],
+                        'total_questions' => $scoreResult['total_questions'],
+                        'correct_answers' => $scoreResult['correct_answers'],
+                        'percentage_score' => $scoreResult['total_questions'] > 0 ? 
+                            round(($scoreResult['correct_answers'] / $scoreResult['total_questions']) * 100, 2) : 0,
+                    ],
+                    'device_type' => $this->detectDeviceType($request),
+                    'user_agent' => $request->header('User-Agent'),
+                ]);
+            } catch (\Exception $e) {
+                Log::warning('Failed to track quiz completion activity', [
+                    'quiz_id' => $quiz_id,
+                    'attempt_id' => $attempt_id,
+                    'user_id' => $request->user()->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
             // Invalidate cache
             QuizCacheService::invalidateUserAttemptCache($request->user()->id, $quiz_id);
 
@@ -669,6 +733,22 @@ class AttemptQuizController extends Controller
             return response()->json([
                 'error' => 'Failed to complete quiz attempt'
             ], 500);
+        }
+    }
+
+    /**
+     * Detect device type from user agent
+     */
+    private function detectDeviceType(Request $request): string
+    {
+        $userAgent = $request->header('User-Agent', '');
+        
+        if (preg_match('/Mobile|Android|iPhone|iPad/', $userAgent)) {
+            return 'mobile';
+        } elseif (preg_match('/Tablet/', $userAgent)) {
+            return 'tablet';
+        } else {
+            return 'desktop';
         }
     }
 }

@@ -130,59 +130,107 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Drop indexes for quiz-related tables
+        // Drop indexes for quiz-related tables with safety checks
         
         Schema::table('quizzes', function (Blueprint $table) {
-            $table->dropIndex(['slug']);
-            $table->dropIndex(['type']);
-            $table->dropIndex(['published_at']);
-            $table->dropIndex(['start_at']);
-            $table->dropIndex(['ends_at']);
-            $table->dropIndex('quizzes_active_quizzes_index');
+            if ($this->indexExists('quizzes', 'quizzes_slug_index')) {
+                $table->dropIndex(['slug']);
+            }
+            if ($this->indexExists('quizzes', 'quizzes_type_index')) {
+                $table->dropIndex(['type']);
+            }
+            if ($this->indexExists('quizzes', 'quizzes_published_at_index')) {
+                $table->dropIndex(['published_at']);
+            }
+            if ($this->indexExists('quizzes', 'quizzes_start_at_index')) {
+                $table->dropIndex(['start_at']);
+            }
+            if ($this->indexExists('quizzes', 'quizzes_ends_at_index')) {
+                $table->dropIndex(['ends_at']);
+            }
+            if ($this->indexExists('quizzes', 'quizzes_active_quizzes_index')) {
+                $table->dropIndex('quizzes_active_quizzes_index');
+            }
         });
 
         Schema::table('quiz_questions', function (Blueprint $table) {
-            $table->dropIndex(['quiz_id', 'question_number']);
-            $table->dropIndex(['question_type']);
+            if ($this->indexExists('quiz_questions', 'quiz_questions_quiz_id_question_number_index')) {
+                $table->dropIndex(['quiz_id', 'question_number']);
+            }
+            if ($this->indexExists('quiz_questions', 'quiz_questions_question_type_index')) {
+                $table->dropIndex(['question_type']);
+            }
         });
 
         Schema::table('quiz_answers', function (Blueprint $table) {
-            $table->dropIndex(['quiz_question_id', 'is_correct']);
+            if ($this->indexExists('quiz_answers', 'quiz_answers_quiz_question_id_is_correct_index')) {
+                $table->dropIndex(['quiz_question_id', 'is_correct']);
+            }
         });
 
         Schema::table('attempt_quizzes', function (Blueprint $table) {
-            $table->dropIndex(['user_id', 'quiz_id']);
-            $table->dropIndex(['quiz_id', 'status']);
-            $table->dropIndex(['status', 'score']);
-            $table->dropIndex(['completed_at']);
-            $table->dropIndex(['started_at']);
+            if ($this->indexExists('attempt_quizzes', 'attempt_quizzes_user_id_quiz_id_index')) {
+                $table->dropIndex(['user_id', 'quiz_id']);
+            }
+            if ($this->indexExists('attempt_quizzes', 'attempt_quizzes_quiz_id_status_index')) {
+                $table->dropIndex(['quiz_id', 'status']);
+            }
+            if ($this->indexExists('attempt_quizzes', 'attempt_quizzes_status_score_index')) {
+                $table->dropIndex(['status', 'score']);
+            }
+            if ($this->indexExists('attempt_quizzes', 'attempt_quizzes_completed_at_index')) {
+                $table->dropIndex(['completed_at']);
+            }
+            if ($this->indexExists('attempt_quizzes', 'attempt_quizzes_started_at_index')) {
+                $table->dropIndex(['started_at']);
+            }
         });
 
         Schema::table('attempt_answers', function (Blueprint $table) {
-            $table->dropIndex(['attempt_id', 'is_correct']);
-            $table->dropIndex(['quiz_question_id', 'is_correct']);
-            $table->dropIndex(['selected_answer_id']);
+            if ($this->indexExists('attempt_answers', 'attempt_answers_attempt_id_is_correct_index')) {
+                $table->dropIndex(['attempt_id', 'is_correct']);
+            }
+            if ($this->indexExists('attempt_answers', 'attempt_answers_quiz_question_id_is_correct_index')) {
+                $table->dropIndex(['quiz_question_id', 'is_correct']);
+            }
+            if ($this->indexExists('attempt_answers', 'attempt_answers_selected_answer_id_index')) {
+                $table->dropIndex(['selected_answer_id']);
+            }
         });
 
         if (Schema::hasTable('learning_outcomes')) {
             Schema::table('learning_outcomes', function (Blueprint $table) {
-                $table->dropIndex(['course_id', 'is_active']);
-                $table->dropIndex(['slug']);
+                if ($this->indexExists('learning_outcomes', 'learning_outcomes_course_id_is_active_index')) {
+                    $table->dropIndex(['course_id', 'is_active']);
+                }
+                if ($this->indexExists('learning_outcomes', 'learning_outcomes_slug_index')) {
+                    $table->dropIndex(['slug']);
+                }
             });
         }
 
         if (Schema::hasTable('learning_outcome_quiz_question')) {
             Schema::table('learning_outcome_quiz_question', function (Blueprint $table) {
-                $table->dropIndex('loqq_learning_outcome_id_quiz_question_id_index');
-                $table->dropIndex(['quiz_question_id']);
+                if ($this->indexExists('learning_outcome_quiz_question', 'loqq_learning_outcome_id_quiz_question_id_index')) {
+                    $table->dropIndex('loqq_learning_outcome_id_quiz_question_id_index');
+                }
+                if ($this->indexExists('learning_outcome_quiz_question', 'loqq_quiz_question_id_index')) {
+                    $table->dropIndex(['quiz_question_id']);
+                }
             });
         }
 
         if (Schema::hasTable('user_activities')) {
             Schema::table('user_activities', function (Blueprint $table) {
-                $table->dropIndex(['user_id', 'activity_type']);
-                $table->dropIndex(['activity_type', 'activity_id']);
-                $table->dropIndex(['last_seen_at']);
+                if ($this->indexExists('user_activities', 'user_activities_user_id_activity_type_index')) {
+                    $table->dropIndex(['user_id', 'activity_type']);
+                }
+                if ($this->indexExists('user_activities', 'user_activities_activity_type_activity_id_index')) {
+                    $table->dropIndex(['activity_type', 'activity_id']);
+                }
+                if ($this->indexExists('user_activities', 'user_activities_last_seen_at_index')) {
+                    $table->dropIndex(['last_seen_at']);
+                }
             });
         }
     }

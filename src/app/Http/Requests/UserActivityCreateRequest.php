@@ -25,10 +25,18 @@ class UserActivityCreateRequest extends FormRequest
     {
         return [
             'user_id' => 'nullable|integer',
-            'activity_type' => 'nullable|string',
-            'activity_id' => 'nullable|string',
-            'last_seen_url' => 'nullable|string',
+            'activity_type' => 'required|string|in:lesson,epub,quiz,task',
+            'activity_id' => 'required|integer',
+            'last_seen_url' => 'nullable|string|max:255',
             'last_seen_at' => 'nullable|date',
+            'metadata' => 'nullable|array',
+            'duration_seconds' => 'nullable|integer|min:0',
+            'progress_percentage' => 'nullable|numeric|min:0|max:100',
+            'action' => 'required|string|in:start,progress,complete,download,view',
+            'started_at' => 'nullable|date',
+            'completed_at' => 'nullable|date|after_or_equal:started_at',
+            'device_type' => 'nullable|string|max:50',
+            'user_agent' => 'nullable|string|max:500',
         ];
     }
 

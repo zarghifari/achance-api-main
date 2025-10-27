@@ -50,7 +50,7 @@ class QuizQuestionController extends Controller
         }
     }
 
-    public function questionCreate(QuizQuestionRequest $request, int $quiz_id): QuizQuestionResource
+    public function questionCreate(QuizQuestionRequest $request, int $quiz_id)
     {
         if ($request->user()->can('create quizzes')) {
             $data = $request->validated();
@@ -68,7 +68,7 @@ class QuizQuestionController extends Controller
         }
     }
 
-    public function questionWithAnswerList(Request $request, int $quiz_id): QuizQuestionCollection
+    public function questionWithAnswerList(Request $request, int $quiz_id)
     {
         if ($request->user()->can('view quizzes')) {
             $cacheKey = "questions_list_{$quiz_id}";
@@ -155,7 +155,7 @@ class QuizQuestionController extends Controller
     }
 
 
-    public function questionDelete(Request $request, int $quiz_id, int $quiz_question_id): QuizQuestionResource
+    public function questionDelete(Request $request, int $quiz_id, int $quiz_question_id)
     {
         $quizQuestion = QuizQuestion::where('quiz_id', $quiz_id)->find($quiz_question_id);
         if ($request->user()->can('delete quizzes', $quizQuestion)) {

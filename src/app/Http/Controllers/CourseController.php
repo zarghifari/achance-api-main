@@ -7,6 +7,7 @@ use App\Http\Requests\CourseUpdateRequest;
 use App\Http\Resources\CourseResource;
 use App\Http\Resources\CourseDetailResource;
 use App\Http\Resources\CourseCollection;
+use App\Http\Resources\EpubResource;
 use App\Models\Course;
 use App\Services\CacheService;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -115,6 +116,123 @@ class CourseController extends Controller
         return response()->json(['message' => 'Unauthorized'], 403);
     }
 
+    /**
+     * Get course with full navigation info for lessons
+     */
+    public function getWithNavigation(Request $request, int $course_id)
+    {
+        if ($request->user()->can('view courses')) {
+            $cacheKey = "course_with_navigation_{$course_id}";
+            $courseData = Cache::remember($cacheKey, 3600, function () use ($course_id) {
+                $course = Course::with([
+                    'modules' => function ($query) {
+                        $query->orderBy('position');
+                    },
+                    'modules.lessons' => function ($query) {
+                        $query->orderBy('position');
+                    },
+                    'modules.lessons.epub',
+                    'modules.tasks'
+                ])->find($course_id);
+
+                if (!$course) {
+                    return null;
+                }
+
+                // Build flat array of all lessons for navigation
+                $allLessons = collect();
+                foreach ($course->modules as $module) {
+                    foreach ($module->lessons as $lesson) {
+                        $allLessons->push($lesson);
+                    }
+                }
+
+                // Add navigation to each lesson
+                foreach ($course->modules as $module) {
+                    foreach ($module->lessons as $lesson) {
+                        $currentIndex = $allLessons->search(function ($item) use ($lesson) {
+                            return $item->id === $lesson->id;
+                        });
+                        
+                        $lesson->next_lesson = $currentIndex !== false && $currentIndex < $allLessons->count() - 1 
+                            ? $allLessons[$currentIndex + 1] : null;
+                        $lesson->prev_lesson = $currentIndex > 0 
+                            ? $allLessons[$currentIndex - 1] : null;
+                    }
+                }
+
+                return $course;
+            });
+
+            if ($courseData === null) {
+                throw new HttpResponseException(response()->json([
+                    'error' => [
+                        'message' => [
+                            'Course not found'
+                        ]
+                    ]
+                ], 404));
+            }
+
+            return response()->json([
+                'data' => [
+                    'id' => $courseData->id,
+                    'title' => $courseData->title,
+                    'slug' => $courseData->slug,
+                    'description' => $courseData->description,
+                    'course_img' => $courseData->course_img,
+                    'video_url' => $courseData->video_url,
+                    'isOpen' => $courseData->isOpen,
+                    'total_hours' => $courseData->total_hours,
+                    'created_at' => $courseData->created_at,
+                    'updated_at' => $courseData->updated_at,
+                    'modules' => $courseData->modules->map(function ($module) {
+                        return [
+                            'id' => $module->id,
+                            'title' => $module->title,
+                            'slug' => $module->slug,
+                            'cover_image' => $module->cover_image,
+                            'video_url' => $module->video_url,
+                            'position' => $module->position,
+                            'description' => $module->description,
+                            'course_id' => $module->course_id,
+                            'lessons' => $module->lessons->map(function ($lesson) {
+                                return [
+                                    'id' => $lesson->id,
+                                    'module_id' => $lesson->module_id,
+                                    'title' => $lesson->title,
+                                    'slug' => $lesson->slug,
+                                    'cover_image' => $lesson->cover_image,
+                                    'video_url' => $lesson->video_url,
+                                    'attachment' => $lesson->attachment,
+                                    'position' => $lesson->position,
+                                    'description' => $lesson->description,
+                                    'epub' => $lesson->epub ? new EpubResource($lesson->epub) : null,
+                                    'navigation' => [
+                                        'next_lesson' => $lesson->next_lesson ? [
+                                            'id' => $lesson->next_lesson->id,
+                                            'title' => $lesson->next_lesson->title,
+                                            'slug' => $lesson->next_lesson->slug,
+                                            'module_id' => $lesson->next_lesson->module_id
+                                        ] : null,
+                                        'prev_lesson' => $lesson->prev_lesson ? [
+                                            'id' => $lesson->prev_lesson->id,
+                                            'title' => $lesson->prev_lesson->title,
+                                            'slug' => $lesson->prev_lesson->slug,
+                                            'module_id' => $lesson->prev_lesson->module_id
+                                        ] : null
+                                    ]
+                                ];
+                            })
+                        ];
+                    })
+                ]
+            ], 200);
+        }
+
+        return response()->json(['message' => 'Unauthorized'], 403);
+    }
+
     public function update(CourseUpdateRequest $request, int $course_id): JsonResponse
     {
         $data = $request->validated();
@@ -130,9 +248,11 @@ class CourseController extends Controller
 
             $course->update($data);
 
-            Cache::forget('course_' . $course_id);
-            Cache::put('course_' . $course->id, $course, 3600);
-            Cache::forget('courses');
+            // Clear course caches using the service
+            CacheService::invalidateCourseCache($course_id);
+            
+            // Also clear the navigation cache
+            Cache::forget("course_with_navigation_{$course_id}");
 
             return (new CourseResource($course))->response()->setStatusCode(200);
         }
@@ -149,8 +269,11 @@ class CourseController extends Controller
             }
             $course->delete();
 
-            Cache::forget('course_' . $course_id);
-            Cache::forget('courses');
+            // Clear course caches using the service
+            CacheService::invalidateCourseCache($course_id);
+            
+            // Also clear the navigation cache
+            Cache::forget("course_with_navigation_{$course_id}");
 
             return response()->json(['message' => 'Course deleted'], 200);
         }

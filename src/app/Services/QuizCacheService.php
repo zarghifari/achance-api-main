@@ -153,6 +153,21 @@ class QuizCacheService
     }
 
     /**
+     * Warm up quiz cache by preloading data
+     */
+    public static function warmUpQuizCache(int $quizId): void
+    {
+        // Preload quiz with questions and answers
+        self::getQuizWithQuestionsAndAnswers($quizId);
+        
+        // Preload quiz questions
+        self::getQuizQuestions($quizId);
+        
+        // Preload quiz statistics
+        self::getQuizStats($quizId);
+    }
+
+    /**
      * Invalidate all quiz system caches
      */
     public static function invalidateAllQuizCaches(): void

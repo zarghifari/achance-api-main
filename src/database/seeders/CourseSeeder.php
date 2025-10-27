@@ -11,6 +11,78 @@ use App\Models\Epub;
 class CourseSeeder extends Seeder
 {
     /**
+     * Generate a readable title from filename
+     */
+    private function generateTitleFromFilename(string $filename): string
+    {
+        // Remove extension
+        $name = pathinfo($filename, PATHINFO_FILENAME);
+        
+        // Replace hyphens, underscores with spaces
+        $name = str_replace(['-', '_'], ' ', $name);
+        
+        // Convert to title case
+        $name = ucwords(strtolower($name));
+        
+        // Handle common abbreviations
+        $name = str_replace(['Ddkv', 'Sem'], ['DDKV', 'Semester'], $name);
+        
+        return $name;
+    }
+
+    /**
+     * Validate and get EPUB file information
+     */
+    private function getEpubFileInfo(string $filePath): array
+    {
+        $fullPath = public_path($filePath);
+        
+        if (!file_exists($fullPath)) {
+            return [
+                'exists' => false,
+                'size' => 0,
+                'mime_type' => 'application/epub+zip',
+                'is_valid' => false,
+                'error' => 'File does not exist'
+            ];
+        }
+
+        $fileSize = filesize($fullPath);
+        $mimeType = 'application/epub+zip';
+        
+        // Basic EPUB validation (check if it's a ZIP file)
+        $isValid = false;
+        $error = null;
+        
+        if ($fileSize > 0) {
+            $fileHandle = fopen($fullPath, 'rb');
+            if ($fileHandle) {
+                $header = fread($fileHandle, 4);
+                fclose($fileHandle);
+                
+                // Check for ZIP file signature (EPUB is a ZIP file)
+                if ($header === "PK\x03\x04" || $header === "PK\x05\x06" || $header === "PK\x07\x08") {
+                    $isValid = true;
+                } else {
+                    $error = 'File is not a valid ZIP/EPUB format';
+                }
+            } else {
+                $error = 'Cannot read file';
+            }
+        } else {
+            $error = 'File is empty';
+        }
+
+        return [
+            'exists' => true,
+            'size' => $fileSize,
+            'mime_type' => $mimeType,
+            'is_valid' => $isValid,
+            'error' => $error
+        ];
+    }
+
+    /**
      * Run the database seeds.
      */
     public function run(): void
@@ -99,18 +171,105 @@ class CourseSeeder extends Seeder
             'position' => 2,
         ]);
 
-        // Create epub for lesson 1
-        Epub::create([
-            'lesson_id' => $lesson1->id,
-            'title' => 'loh',
-            'file_path' => 'uploads/epubs/coreldraw_ddkv_sem2.epub', // dummy epub file path
-        ]);
+        // Dynamically load all EPUB files from uploads/epubs directory
+        $epubDirectory = public_path('uploads/epubs');
+        $epubFiles = [];
+        
+        if (is_dir($epubDirectory)) {
+            $files = scandir($epubDirectory);
+            foreach ($files as $file) {
+                if (pathinfo($file, PATHINFO_EXTENSION) === 'epub') {
+                    $epubFiles[] = $file;
+                }
+            }
+        }
 
-        // Create epubs for lesson 2
-        Epub::create([
-            'lesson_id' => $lesson2->id,
-            'title' => 'Sample Epub 1',
-            'file_path' => 'uploads/epubs/coreldraw-ddkv-sem2.epub', // dummy epub file path
-        ]);
+        // Create EPUBs for lessons using available files
+        $lessons = [$lesson1, $lesson2, $lesson3, $lesson4];
+        
+        foreach ($epubFiles as $index => $epubFile) {
+            if (isset($lessons[$index])) {
+                $filePath = 'uploads/epubs/' . $epubFile;
+                
+                // Generate title from filename
+                $title = $this->generateTitleFromFilename($epubFile);
+                
+                // Get and validate file information
+                $fileInfo = $this->getEpubFileInfo($filePath);
+                
+                if (!$fileInfo['exists']) {
+                    $this->command->warn("Skipping {$epubFile}: File not found");
+                    continue;
+                }
+
+                if (!$fileInfo['is_valid']) {
+                    $this->command->warn("Warning for {$epubFile}: {$fileInfo['error']}");
+                }
+                
+                Epub::create([
+                    'lesson_id' => $lessons[$index]->id,
+                    'title' => $title,
+                    'file_path' => $filePath,
+                    'original_filename' => $epubFile,
+                    'file_size' => $fileInfo['size'],
+                    'mime_type' => $fileInfo['mime_type'],
+                    'position' => 0,
+                    'is_active' => $fileInfo['is_valid'], // Only activate if valid
+                ]);
+                
+                $status = $fileInfo['is_valid'] ? '✓ Valid' : '⚠ Invalid';
+                $this->command->info("Created EPUB: {$title} for lesson {$lessons[$index]->title} (Size: " . number_format($fileInfo['size'] / 1024, 2) . " KB) [{$status}]");
+            }
+        }
+
+        // If we have more lessons than EPUB files, create additional EPUBs using existing files
+        if (count($lessons) > count($epubFiles) && !empty($epubFiles)) {
+            for ($i = count($epubFiles); $i < count($lessons); $i++) {
+                $epubFile = $epubFiles[$i % count($epubFiles)]; // Cycle through available files
+                $filePath = 'uploads/epubs/' . $epubFile;
+                
+                $title = $this->generateTitleFromFilename($epubFile) . ' (Copy ' . ($i - count($epubFiles) + 2) . ')';
+                
+                // Get and validate file information
+                $fileInfo = $this->getEpubFileInfo($filePath);
+                
+                if (!$fileInfo['exists']) {
+                    $this->command->warn("Skipping {$epubFile} (copy): File not found");
+                    continue;
+                }
+                
+                Epub::create([
+                    'lesson_id' => $lessons[$i]->id,
+                    'title' => $title,
+                    'file_path' => $filePath,
+                    'original_filename' => $epubFile,
+                    'file_size' => $fileInfo['size'],
+                    'mime_type' => $fileInfo['mime_type'],
+                    'position' => 0,
+                    'is_active' => $fileInfo['is_valid'], // Only activate if valid
+                ]);
+                
+                $status = $fileInfo['is_valid'] ? '✓ Valid' : '⚠ Invalid';
+                $this->command->info("Created EPUB: {$title} for lesson {$lessons[$i]->title} (Size: " . number_format($fileInfo['size'] / 1024, 2) . " KB) [{$status}]");
+            }
+        }
+
+        // Log summary
+        $totalEpubsCreated = Epub::count();
+        $activeEpubsCount = Epub::where('is_active', true)->count();
+        $this->command->info("📚 Seeding Summary:");
+        $this->command->info("   - Total EPUBs created: {$totalEpubsCreated}");
+        $this->command->info("   - Active EPUBs: {$activeEpubsCount}");
+        $this->command->info("   - Files found in uploads/epubs: " . count($epubFiles));
+        
+        if (!empty($epubFiles)) {
+            $this->command->info("   - Available EPUB files:");
+            foreach ($epubFiles as $file) {
+                $this->command->info("     • {$file}");
+            }
+        } else {
+            $this->command->warn("   - No EPUB files found in public/uploads/epubs directory");
+            $this->command->info("   - Add .epub files to public/uploads/epubs/ and re-run the seeder");
+        }
     }
 }

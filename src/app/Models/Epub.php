@@ -16,7 +16,18 @@ class Epub extends Model
     protected $fillable = [
         'lesson_id',
         'title',
-        'file_path'
+        'file_path',
+        'original_filename',
+        'file_size',
+        'mime_type',
+        'position',
+        'is_active'
+    ];
+
+    protected $casts = [
+        'file_size' => 'integer',
+        'position' => 'integer',
+        'is_active' => 'boolean'
     ];
 
     public function lesson()

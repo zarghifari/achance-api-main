@@ -25,6 +25,9 @@ class LessonResource extends JsonResource
             'attachment' => $this->attachment,
             'position' => (int) $this->position,
             'description' => $this->description,
+            'epub' => $this->whenLoaded('epub', function () {
+                return new EpubResource($this->epub);
+            }),
         ];
     }
 }

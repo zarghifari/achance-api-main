@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Log;
 
 class CacheService
 {
@@ -18,19 +19,21 @@ class CacheService
      */
     public static function cacheCourses($callback, $ttl = self::LONG_TTL)
     {
-        return Cache::tags(['courses'])->remember('courses_list', $ttl, $callback);
+        $cacheKey = 'courses_list';
+        
+        // Use simple Cache::remember instead of tagged cache for reliability
+        return Cache::remember($cacheKey, $ttl, $callback);
     }
 
-        /**
+    /**
      * Cache individual course with proper tagging
      */
     public static function cacheCourse($courseId, $callback, $ttl = self::LONG_TTL)
     {
-        return Cache::tags(['courses', "course_{$courseId}"])->remember(
-            "course_detail_{$courseId}",
-            $ttl,
-            $callback
-        );
+        $cacheKey = "course_detail_{$courseId}";
+        
+        // Use simple Cache::remember for consistency
+        return Cache::remember($cacheKey, $ttl, $callback);
     }
 
     /**
@@ -58,10 +61,33 @@ class CacheService
      */
     public static function invalidateCourseCache($courseId = null)
     {
-        Cache::tags(['courses'])->flush();
-        
-        if ($courseId) {
-            Cache::tags(["course_{$courseId}"])->flush();
+        try {
+            // Clear explicit cache keys (most reliable approach)
+            Cache::forget('courses_list');
+            Cache::forget('courses');
+            
+            if ($courseId) {
+                Cache::forget("course_detail_{$courseId}");
+                Cache::forget('course_' . $courseId);
+                Cache::forget("course_with_navigation_{$courseId}");
+            }
+            
+            // Clear search caches using Redis directly
+            try {
+                $redis = \Illuminate\Support\Facades\Redis::connection();
+                $searchKeys = $redis->keys('*course_search_*');
+                if (!empty($searchKeys)) {
+                    $redis->del($searchKeys);
+                }
+            } catch (\Exception $e) {
+                Log::warning('Redis search cache clearing failed', ['error' => $e->getMessage()]);
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to invalidate course cache', [
+                'course_id' => $courseId,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 

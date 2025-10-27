@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use App\Models\Module;
 use App\Http\Resources\ModuleResource;
 use App\Http\Resources\ModuleCollection;
+use App\Services\CacheService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -49,17 +50,18 @@ class ModuleController extends Controller
             }
             $module = Module::create($data);
 
-            Cache::forget('course_' . $course_id);
+            // Clear course caches and related caches
+            CacheService::invalidateCourseCache($course_id);
             Cache::forget("module_" . $module->id);
-            Cache::put("module_" . $module->id, $module, 3600);
             Cache::forget("modules_list_{$course_id}");
+            
             return (new ModuleResource($module))->response()->setStatusCode(201);
         }
 
         return response()->json(['message' => 'Unauthorized'], 403);
     }
 
-    public function listByCourse(int $course_id, Request $request): ModuleCollection
+    public function listByCourse(int $course_id, Request $request): JsonResponse
     {
         if ($request->user()->can('view courses')) {
             $modules = Cache::remember("modules_list_{$course_id}", 3600, function() use ($course_id) {
@@ -74,7 +76,7 @@ class ModuleController extends Controller
                 ->orderByRaw('COALESCE(position, 0)')
                 ->get();
             });
-            return new ModuleCollection($modules);
+            return (new ModuleCollection($modules))->response()->setStatusCode(200);
         }
         return response()->json(['message' => 'Unauthorized'], 403);
     }
@@ -147,10 +149,11 @@ class ModuleController extends Controller
             }
             $module->update($data);
 
-            Cache::forget('course_' . $course_id);
+            // Clear course caches and related caches
+            CacheService::invalidateCourseCache($course_id);
             Cache::forget("module_" . $module->id);
-            Cache::put("module_{$module->id}", $module, 3600);
             Cache::forget("modules_list_{$course_id}");
+            
             return (new ModuleResource($module))->response()->setStatusCode(200);
         }
         return response()->json(['message' => 'Unauthorized'], 403);
@@ -172,10 +175,12 @@ class ModuleController extends Controller
             }
             $module->delete();
 
-            Cache::forget('course_' . $course_id);
+            // Clear course caches and related caches
+            CacheService::invalidateCourseCache($course_id);
             Cache::forget("module_" . $module->id);
             Cache::forget("module_{$module_id}");
             Cache::forget("modules_list_{$course_id}");
+            
             return response()->json(['message' => 'Module deleted'], 200);
         }
         return response()->json(['message' => 'Unauthorized'], 403);
