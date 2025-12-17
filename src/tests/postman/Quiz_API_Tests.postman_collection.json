@@ -21,7 +21,7 @@
         "exec": [
           "// Set base URL if not already set",
           "if (!pm.environment.get('baseUrl')) {",
-          "    pm.environment.set('baseUrl', 'http://localhost:80/api');",
+          "    pm.environment.set('baseUrl', 'http://localhost/api');",
           "}",
           "",
           "// Generate unique identifiers for this test run",

@@ -23,8 +23,12 @@ class ModuleResource extends JsonResource
             'position' => (int) $this->position,
             'description' => $this->description,
             'course_id' => (int) $this->course_id,
-            'lessons' => LessonResource::collection($this->lessons),
-            'tasks' => TaskResource::collection($this->tasks), 
+            'lessons' => $this->whenLoaded('lessons', function () {
+                return LessonResource::collection($this->lessons);
+            }),
+            'tasks' => $this->whenLoaded('tasks', function () {
+                return TaskResource::collection($this->tasks);
+            }),
         ];
     }
 }

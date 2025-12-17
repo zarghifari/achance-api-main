@@ -68,6 +68,9 @@ docker-compose exec app1 php artisan key:generate
 # Wait for MySQL to be ready
 docker-compose exec mysql mysqladmin ping -h localhost -uroot -proot
 
+# Create storage symbolic link (REQUIRED for EPUB file downloads)
+docker-compose exec app1 php artisan storage:link
+
 # Run database migrations and seeders
 docker-compose exec app1 php artisan migrate:fresh --seed
 
@@ -577,6 +580,7 @@ docker-compose up -d
 # 3. Install dependencies and setup
 docker-compose exec app1 composer install --no-dev --optimize-autoloader
 docker-compose exec app1 php artisan key:generate
+docker-compose exec app1 php artisan storage:link
 docker-compose exec app1 php artisan migrate:fresh --seed
 
 # 4. Cache configurations

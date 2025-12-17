@@ -48,13 +48,37 @@ class CourseController extends Controller
     public function getList(Request $request)
     {
         if ($request->user()->can('view courses')) {
-            $courses = CacheService::cacheCourses(function () {
-                return Course::select(['id', 'title', 'slug', 'description', 'cover_image', 'isOpen', 'total_hours', 'created_at', 'updated_at'])
-                    ->orderBy('created_at', 'desc')
-                    ->get();
-            });
+            $cacheKey = 'courses_list_json';
+            
+            $cached = Cache::get($cacheKey);
+            if ($cached !== null) {
+                return response()->json($cached, 200)
+                    ->header('X-Cache-Status', 'HIT');
+            }
+            
+            $courses = Course::select(['id', 'title', 'slug', 'description', 'cover_image', 'isOpen', 'total_hours', 'created_at', 'updated_at'])
+                ->orderBy('created_at', 'desc')
+                ->get();
 
-            return (new CourseCollection($courses))->response()->setStatusCode(200);
+            $data = ['data' => $courses->map(function($course) {
+                return [
+                    'id' => $course->id,
+                    'title' => $course->title,
+                    'slug' => $course->slug,
+                    'description' => $course->description,
+                    'cover_image' => $course->cover_image,
+                    'isOpen' => $course->isOpen,
+                    'total_hours' => $course->total_hours,
+                    'created_at' => $course->created_at,
+                    'updated_at' => $course->updated_at,
+                ];
+            })->values()->all()];
+            
+            Cache::put($cacheKey, $data, 3600); // 1 hour cache
+            
+            return response()->json($data, 200)
+                ->header('X-Cache-Status', 'MISS')
+                ->header('Cache-Control', 'public, max-age=3600');
         }
 
         return response()->json(['message' => 'Unauthorized'], 403);
@@ -68,18 +92,46 @@ class CourseController extends Controller
             $search = $request->input('search');
 
             // Cache search results for short time
-            $cacheKey = "course_search_" . md5($search . $page . $size);
-            $courses = Cache::remember($cacheKey, 300, function () use ($search, $size, $page) {
-                return Course::where('title', 'like', "%$search%")
-                    ->orWhere('description', 'like', "%$search%")
-                    ->select(['id', 'title', 'slug', 'description', 'cover_image', 'isOpen', 'total_hours'])
-                    ->paginate($size, ['*'], 'page', $page);
-            });
-
-            if ($courses === null) {
-                return response()->json(['message' => 'Course not found'], 404);
+            $cacheKey = "course_search_json_" . md5($search . $page . $size);
+            
+            $cached = Cache::get($cacheKey);
+            if ($cached !== null) {
+                return response()->json($cached, 200)
+                    ->header('X-Cache-Status', 'HIT');
             }
-            return new CourseCollection($courses);
+            
+            $courses = Course::where('title', 'like', "%$search%")
+                ->orWhere('description', 'like', "%$search%")
+                ->select(['id', 'title', 'slug', 'description', 'cover_image', 'isOpen', 'total_hours'])
+                ->paginate($size, ['*'], 'page', $page);
+            
+            $data = [
+                'data' => $courses->map(function($course) {
+                    return [
+                        'id' => $course->id,
+                        'title' => $course->title,
+                        'slug' => $course->slug,
+                        'description' => $course->description,
+                        'cover_image' => $course->cover_image,
+                        'isOpen' => $course->isOpen,
+                        'total_hours' => $course->total_hours,
+                    ];
+                })->values()->all(),
+                'meta' => [
+                    'current_page' => $courses->currentPage(),
+                    'from' => $courses->firstItem(),
+                    'last_page' => $courses->lastPage(),
+                    'per_page' => $courses->perPage(),
+                    'to' => $courses->lastItem(),
+                    'total' => $courses->total(),
+                ]
+            ];
+            
+            Cache::put($cacheKey, $data, 1800); // 30 minutes cache
+            
+            return response()->json($data, 200)
+                ->header('X-Cache-Status', 'MISS')
+                ->header('Cache-Control', 'public, max-age=1800');
         }
 
         return response()->json(['message' => 'Unauthorized'], 403);
@@ -88,18 +140,34 @@ class CourseController extends Controller
     public function get(Request $request, int $course_id)
     {
         if ($request->user()->can('view courses')) {
-            $course = CacheService::cacheCourse($course_id, function () use ($course_id) {
-                return Course::with([
-                    'modules' => function ($query) {
-                        $query->orderBy('position');
-                    },
-                    'modules.lessons' => function ($query) {
-                        $query->orderBy('position');
-                    },
-                    'modules.lessons.epub',
-                    'modules.tasks'
-                ])->find($course_id);
-            });
+            // Use response caching with fast serialization
+            $cacheKey = "course_json_{$course_id}_v2";
+            
+            $cached = Cache::get($cacheKey);
+            
+            if ($cached !== null) {
+                // Cache hit - return immediately without Resource overhead
+                return response()->json($cached, 200)
+                    ->header('Cache-Control', 'public, max-age=600')
+                    ->header('X-Cache-Status', 'HIT');
+            }
+            
+            // Cache miss - load and transform data
+            $course = Course::with([
+                'modules' => function ($query) {
+                    $query->orderBy('position')->select(['id', 'course_id', 'title', 'slug', 'cover_image', 'video_url', 'position', 'description']);
+                },
+                'modules.lessons' => function ($query) {
+                    $query->orderBy('position')->select(['id', 'module_id', 'title', 'slug', 'cover_image', 'video_url', 'attachment', 'position', 'description']);
+                },
+                'modules.lessons.epub' => function ($query) {
+                    $query->select(['id', 'lesson_id', 'title', 'file_path', 'original_filename', 'file_size', 'mime_type', 'position', 'is_active']);
+                },
+                'modules.tasks' => function ($query) {
+                    $query->select(['id', 'module_id', 'title', 'slug', 'content', 'position']);
+                }
+            ])->select(['id', 'title', 'slug', 'description', 'cover_image', 'video_url', 'isOpen', 'total_hours', 'created_at', 'updated_at'])
+            ->find($course_id);
 
             if ($course === null) {
                 throw new HttpResponseException(response()->json([
@@ -110,7 +178,74 @@ class CourseController extends Controller
                     ]
                 ], 404));
             }
-            return (new CourseDetailResource($course))->response()->setStatusCode(200);
+            
+            // Transform to array directly (faster than Resource)
+            $data = [
+                'data' => [
+                    'id' => $course->id,
+                    'title' => $course->title,
+                    'slug' => $course->slug,
+                    'description' => $course->description,
+                    'cover_image' => $course->cover_image,
+                    'video_url' => $course->video_url,
+                    'isOpen' => $course->isOpen,
+                    'total_hours' => $course->total_hours,
+                    'created_at' => $course->created_at,
+                    'updated_at' => $course->updated_at,
+                    'modules' => $course->modules->map(function ($module) {
+                        return [
+                            'id' => $module->id,
+                            'title' => $module->title,
+                            'slug' => $module->slug,
+                            'cover_image' => $module->cover_image,
+                            'video_url' => $module->video_url,
+                            'position' => $module->position,
+                            'description' => $module->description,
+                            'course_id' => $module->course_id,
+                            'lessons' => $module->lessons->map(function ($lesson) {
+                                return [
+                                    'id' => $lesson->id,
+                                    'module_id' => $lesson->module_id,
+                                    'title' => $lesson->title,
+                                    'slug' => $lesson->slug,
+                                    'cover_image' => $lesson->cover_image,
+                                    'video_url' => $lesson->video_url,
+                                    'attachment' => $lesson->attachment,
+                                    'position' => $lesson->position,
+                                    'description' => $lesson->description,
+                                    'epub' => $lesson->epub ? [
+                                        'id' => $lesson->epub->id,
+                                        'title' => $lesson->epub->title,
+                                        'file_path' => $lesson->epub->file_path,
+                                        'original_filename' => $lesson->epub->original_filename,
+                                        'file_size' => $lesson->epub->file_size,
+                                        'mime_type' => $lesson->epub->mime_type,
+                                        'position' => $lesson->epub->position,
+                                        'is_active' => $lesson->epub->is_active,
+                                    ] : null,
+                                ];
+                            })->values()->all(),
+                            'tasks' => $module->tasks->map(function ($task) {
+                                return [
+                                    'id' => $task->id,
+                                    'module_id' => $task->module_id,
+                                    'title' => $task->title,
+                                    'slug' => $task->slug,
+                                    'content' => $task->content,
+                                    'position' => $task->position,
+                                ];
+                            })->values()->all(),
+                        ];
+                    })->values()->all(),
+                ]
+            ];
+            
+            // Cache for 1 hour
+            Cache::put($cacheKey, $data, 3600);
+            
+            return response()->json($data, 200)
+                ->header('Cache-Control', 'public, max-age=3600')
+                ->header('X-Cache-Status', 'MISS');
         }
 
         return response()->json(['message' => 'Unauthorized'], 403);

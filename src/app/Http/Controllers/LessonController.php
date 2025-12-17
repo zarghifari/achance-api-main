@@ -90,38 +90,77 @@ class LessonController extends Controller
     public function get(int $course_id, int $module_id, int $lesson_id, Request $request): JsonResponse
     {
         if ($request->user()->can('view courses')) {
-            $cacheKey = "lesson_{$lesson_id}";
-            $lesson = Cache::remember($cacheKey, 3600, function() use ($module_id, $lesson_id) {
-                Log::info("Fetching lesson from database for lesson_id: {$lesson_id}");
-                $lesson = Lesson::with('epub') // Eager load epub
-                    ->where('module_id', $module_id)
-                    ->where('id', $lesson_id)
-                    ->firstOrFail();
-                Log::info("Lesson fetched from database with epub: ", $lesson->toArray());
-                return $lesson;
-            });
-
-            if ($lesson === null) {
-            Log::warning("No lesson found for lesson_id: {$lesson_id}");
-            } else {
-            Log::info("Lesson from cache or database: ", $lesson->toArray());
+            $cacheKey = "lesson_json_{$lesson_id}";
+            
+            $cached = Cache::get($cacheKey);
+            if ($cached !== null) {
+                return response()->json($cached, 200)
+                    ->header('X-Cache-Status', 'HIT');
             }
+            
+            $lesson = Lesson::with(['epub' => function($query) {
+                $query->select(['id', 'lesson_id', 'title', 'file_path', 'original_filename', 'file_size', 'mime_type', 'position', 'is_active']);
+            }])
+                ->where('module_id', $module_id)
+                ->where('id', $lesson_id)
+                ->select(['id', 'module_id', 'title', 'slug', 'description', 'cover_image', 'video_url', 'attachment', 'position', 'created_at', 'updated_at'])
+                ->firstOrFail();
 
             $next_lesson = Lesson::where('module_id', $module_id)
-            ->where('position', '>', $lesson->position)
-            ->orderBy('position')
-            ->first();
+                ->where('position', '>', $lesson->position)
+                ->orderBy('position')
+                ->select(['id', 'title', 'slug', 'position'])
+                ->first();
 
             $prev_lesson = Lesson::where('module_id', $module_id)
-            ->where('position', '<', $lesson->position)
-            ->orderBy('position', 'desc')
-            ->first();
+                ->where('position', '<', $lesson->position)
+                ->orderBy('position', 'desc')
+                ->select(['id', 'title', 'slug', 'position'])
+                ->first();
 
+            $data = [
+                'data' => [
+                    'id' => $lesson->id,
+                    'module_id' => $lesson->module_id,
+                    'title' => $lesson->title,
+                    'slug' => $lesson->slug,
+                    'description' => $lesson->description,
+                    'cover_image' => $lesson->cover_image,
+                    'video_url' => $lesson->video_url,
+                    'attachment' => $lesson->attachment,
+                    'position' => $lesson->position,
+                    'created_at' => $lesson->created_at,
+                    'updated_at' => $lesson->updated_at,
+                    'epub' => $lesson->epub ? [
+                        'id' => $lesson->epub->id,
+                        'title' => $lesson->epub->title,
+                        'file_path' => $lesson->epub->file_path,
+                        'original_filename' => $lesson->epub->original_filename,
+                        'file_size' => $lesson->epub->file_size,
+                        'mime_type' => $lesson->epub->mime_type,
+                        'position' => $lesson->epub->position,
+                        'is_active' => $lesson->epub->is_active,
+                    ] : null,
+                ],
+                'next_lesson' => $next_lesson ? [
+                    'id' => $next_lesson->id,
+                    'title' => $next_lesson->title,
+                    'slug' => $next_lesson->slug,
+                    'position' => $next_lesson->position,
+                ] : null,
+                'prev_lesson' => $prev_lesson ? [
+                    'id' => $prev_lesson->id,
+                    'title' => $prev_lesson->title,
+                    'slug' => $prev_lesson->slug,
+                    'position' => $prev_lesson->position,
+                ] : null,
+            ];
+            
+            Cache::put($cacheKey, $data, 3600); // 1 hour cache
             Cache::forget("lesson_{$lesson_id}_recent");
-            return (new LessonDetailResource($lesson))->additional([
-            'next_lesson' => $next_lesson ? new LessonResource($next_lesson) : null,
-            'prev_lesson' => $prev_lesson ? new LessonResource($prev_lesson) : null,
-            ])->response()->setStatusCode(200);
+            
+            return response()->json($data, 200)
+                ->header('X-Cache-Status', 'MISS');
         }
         return response()->json(['message' => 'Unauthorized'], 403);
     }
@@ -205,7 +244,9 @@ class LessonController extends Controller
             // Clear course caches and related caches
             CacheService::invalidateCourseCache($course_id);
             Cache::forget("module_" . $module_id);
+            Cache::forget("module_json_{$module_id}");
             Cache::forget("lessons_" . $lesson->id);
+            Cache::forget("lesson_json_{$lesson->id}");
             Cache::forget("lessons_list_{$module_id}");
             
             return (new LessonResource($lesson))->response()->setStatusCode(200);
@@ -237,8 +278,10 @@ class LessonController extends Controller
             // Clear course caches and related caches
             CacheService::invalidateCourseCache($course_id);
             Cache::forget("module_" . $module_id);
+            Cache::forget("module_json_{$module_id}");
             Cache::forget("lessons_" . $lesson->id);
             Cache::forget("lesson_{$lesson->id}");
+            Cache::forget("lesson_json_{$lesson->id}");
             Cache::forget("lessons_list_{$module_id}");
             
             return response()->json(['message' => 'Lesson deleted'], 200);

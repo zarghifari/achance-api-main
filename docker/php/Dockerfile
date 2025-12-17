@@ -38,14 +38,11 @@ COPY docker/php/php.ini /usr/local/etc/php/php.ini
 # Set working directory
 WORKDIR /var/www
 
-# Copy only composer files first for better caching
-COPY --chown=www-data:www-data src/composer.json src/composer.lock ./
+# Copy the entire application code
+COPY --chown=www-data:www-data src/. .
 
 # Install PHP dependencies (including dev dependencies for development)
-RUN composer install --no-interaction --prefer-dist --optimize-autoloader
-
-# Copy the rest of the application code
-COPY --chown=www-data:www-data src/. .
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts
 
 # Set proper permissions
 RUN chown -R www-data:www-data /var/www \
@@ -60,20 +57,14 @@ COPY docker/php/php.ini /usr/local/etc/php/php.ini
 # Set working directory
 WORKDIR /var/www
 
-# Copy only composer files first
-COPY --chown=www-data:www-data src/composer.json src/composer.lock ./
+# Copy the entire application code
+COPY --chown=www-data:www-data src/. .
 
 # Install only production dependencies
 RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --classmap-authoritative --no-scripts
 
-# Copy the rest of the application code
-COPY --chown=www-data:www-data src/. .
-
 # Run additional optimizations for production
-RUN composer run post-autoload-dump || true && \
-    php artisan config:cache \
-    && php artisan route:cache \
-    && php artisan view:cache
+RUN composer dump-autoload --optimize --classmap-authoritative
 
 # Set proper permissions
 RUN chown -R www-data:www-data /var/www \

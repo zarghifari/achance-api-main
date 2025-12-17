@@ -16,7 +16,7 @@
           "",
           "// Alternative base URLs for different environments",
           "// Development: http://localhost/api",
-          "// Docker: http://localhost:80/api or http://localhost/api",
+          "// Docker: http://localhost/api (Nginx on port 80)",
           "",
           "// Generate unique identifiers for this test run",
           "const timestamp = Date.now();",

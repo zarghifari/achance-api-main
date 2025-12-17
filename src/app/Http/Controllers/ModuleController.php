@@ -53,6 +53,7 @@ class ModuleController extends Controller
             // Clear course caches and related caches
             CacheService::invalidateCourseCache($course_id);
             Cache::forget("module_" . $module->id);
+            Cache::forget("module_json_{$module->id}");
             Cache::forget("modules_list_{$course_id}");
             
             return (new ModuleResource($module))->response()->setStatusCode(201);
@@ -84,15 +85,38 @@ class ModuleController extends Controller
     public function get(int $course_id, int $module_id, Request $request): JsonResponse
     {
         if ($request->user()->can('view courses')) {
-            $module = Cache::remember("module_{$module_id}", 3600, function() use ($course_id, $module_id) {
-                return Module::where('course_id', $course_id)
-                    ->where('id', $module_id)
-                    ->firstOrFail();
-            });
-            // Cache::forget("module_{$module->id}");
-            // Cache::put("module_{$module->id}", $module, 3600);
+            $cacheKey = "module_json_{$module_id}";
+            
+            $cached = Cache::get($cacheKey);
+            if ($cached !== null) {
+                return response()->json($cached, 200)
+                    ->header('X-Cache-Status', 'HIT');
+            }
+            
+            $module = Module::where('course_id', $course_id)
+                ->where('id', $module_id)
+                ->select(['id', 'course_id', 'title', 'slug', 'description', 'cover_image', 'video_url', 'position', 'created_at', 'updated_at'])
+                ->firstOrFail();
 
-            return (new ModuleResource($module))->response()->setStatusCode(200);
+            $data = [
+                'data' => [
+                    'id' => $module->id,
+                    'course_id' => $module->course_id,
+                    'title' => $module->title,
+                    'slug' => $module->slug,
+                    'description' => $module->description,
+                    'cover_image' => $module->cover_image,
+                    'video_url' => $module->video_url,
+                    'position' => $module->position,
+                    'created_at' => $module->created_at,
+                    'updated_at' => $module->updated_at,
+                ]
+            ];
+            
+            Cache::put($cacheKey, $data, 3600); // 1 hour cache
+            
+            return response()->json($data, 200)
+                ->header('X-Cache-Status', 'MISS');
         }
         return response()->json(['message' => 'Unauthorized'], 403);
     }
@@ -152,6 +176,7 @@ class ModuleController extends Controller
             // Clear course caches and related caches
             CacheService::invalidateCourseCache($course_id);
             Cache::forget("module_" . $module->id);
+            Cache::forget("module_json_{$module->id}");
             Cache::forget("modules_list_{$course_id}");
             
             return (new ModuleResource($module))->response()->setStatusCode(200);
@@ -179,6 +204,7 @@ class ModuleController extends Controller
             CacheService::invalidateCourseCache($course_id);
             Cache::forget("module_" . $module->id);
             Cache::forget("module_{$module_id}");
+            Cache::forget("module_json_{$module_id}");
             Cache::forget("modules_list_{$course_id}");
             
             return response()->json(['message' => 'Module deleted'], 200);

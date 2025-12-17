@@ -25,7 +25,18 @@ class CourseDetailResource extends JsonResource
             'total_hours' => $this->total_hours,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
-            'modules' => ModuleResource::collection($this->modules),
+            'modules' => $this->whenLoaded('modules', function () {
+                return ModuleResource::collection($this->modules);
+            }),
         ];
+    }
+    
+    /**
+     * Customize the response to reduce overhead
+     */
+    public function withResponse($request, $response)
+    {
+        // Set cache headers for better performance
+        $response->header('Cache-Control', 'public, max-age=300');
     }
 }

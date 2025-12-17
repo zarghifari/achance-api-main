@@ -57,12 +57,17 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'strict' => true,
-            'engine' => null,
+            'engine' => 'InnoDB',
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-                PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
-                PDO::ATTR_PERSISTENT => true,
+                PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => false,  // Better for large result sets
+                PDO::ATTR_PERSISTENT => false,  // DISABLED: Causes issues in Docker/WSL2
+                PDO::ATTR_EMULATE_PREPARES => false,  // Use native prepared statements
+                PDO::ATTR_STRINGIFY_FETCHES => false,  // Keep native data types
+                PDO::ATTR_TIMEOUT => 5,  // Connection timeout (seconds)
+                PDO::MYSQL_ATTR_INIT_COMMAND => "SET SESSION sql_mode='STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'",
             ]) : [],
+            'sticky' => true,  // Read from master after write
         ],
 
         'pgsql' => [
@@ -128,6 +133,11 @@ return [
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
             'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_database_'),
+            // Performance optimizations
+            'persistent' => true,  // Persistent connections
+            'timeout' => 2.0,  // Connection timeout
+            'read_timeout' => 2.0,  // Read timeout
+            'retry_interval' => 100,  // Retry interval in milliseconds
         ],
 
         'default' => [
@@ -137,6 +147,7 @@ return [
             'password' => env('REDIS_PASSWORD', null),
             'port' => env('REDIS_PORT', '6379'),
             'database' => env('REDIS_DB', '0'),
+            'persistent' => true,  // Enable persistent connection
         ],
 
         'cache' => [

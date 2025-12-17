@@ -65,11 +65,13 @@ class CacheService
             // Clear explicit cache keys (most reliable approach)
             Cache::forget('courses_list');
             Cache::forget('courses');
+            Cache::forget('courses_list_json'); // New JSON cache
             
             if ($courseId) {
                 Cache::forget("course_detail_{$courseId}");
                 Cache::forget('course_' . $courseId);
                 Cache::forget("course_with_navigation_{$courseId}");
+                Cache::forget("course_json_{$courseId}_v2"); // New JSON cache
             }
             
             // Clear search caches using Redis directly
