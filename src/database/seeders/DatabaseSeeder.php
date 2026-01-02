@@ -27,6 +27,11 @@ class DatabaseSeeder extends Seeder
         $this->call(LearningOutcomeSeeder::class);
         $this->call(QuizAttemptSeeder::class);
         
+        // Self-Directed Learning seeders
+        $this->call(LearningProfileSeeder::class);
+        $this->call(LearningGoalSeeder::class);
+        $this->call(BookmarkSeeder::class);
+        
         // Optional: Enhanced demo data (run with --class=EnhancedQuizDemoSeeder for comprehensive demo)
         if ($this->command->option('class') === 'EnhancedQuizDemoSeeder' || 
             $this->command->confirm('Would you like to create enhanced demo data?', false)) {

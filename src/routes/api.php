@@ -32,6 +32,9 @@ use App\Http\Controllers\PerformanceDashboardController;
 use App\Http\Controllers\AttemptAnswerController;
 use App\Http\Controllers\UserActivityController;
 use App\Http\Controllers\QuizBulkImportController;
+use App\Http\Controllers\LearningGoalController;
+use App\Http\Controllers\LearningProfileController;
+use App\Http\Controllers\BookmarkController;
 
 Route::post('/register', [RegisterController::class, 'register']);
 Route::post('/login', [LoginController::class, 'login']);
@@ -165,4 +168,35 @@ Route::middleware('auth:sanctum')->group(function () {
     // Bulk Import Status Route
     Route::get('/quizzes/bulk-import/status/{jobId}', [QuizBulkImportController::class, 'getImportStatus'])
         ->name('quiz.bulk-import.status');
+
+    // Self-Directed Learning Routes
+    
+    // Learning Goals
+    Route::prefix('learning-goals')->group(function () {
+        Route::post('/', [LearningGoalController::class, 'create']);
+        Route::get('/', [LearningGoalController::class, 'getMyGoals']);
+        Route::get('/{id}', [LearningGoalController::class, 'getGoal']);
+        Route::put('/{id}', [LearningGoalController::class, 'update']);
+        Route::delete('/{id}', [LearningGoalController::class, 'delete']);
+        Route::post('/{id}/progress', [LearningGoalController::class, 'trackProgress']);
+    });
+
+    // Learning Profile & Preferences
+    Route::prefix('learning-profile')->group(function () {
+        Route::get('/', [LearningProfileController::class, 'getProfile']);
+        Route::put('/preferences', [LearningProfileController::class, 'updatePreferences']);
+        Route::post('/assessment', [LearningProfileController::class, 'submitAssessment']);
+    });
+
+    // Personalized Feed
+    Route::get('/personalized-feed', [LearningProfileController::class, 'getPersonalizedFeed']);
+
+    // Bookmarks
+    Route::prefix('bookmarks')->group(function () {
+        Route::post('/{type}/{id}', [BookmarkController::class, 'toggleBookmark'])->where(['type' => 'lesson|course|module', 'id' => '[0-9]+']);
+        Route::get('/', [BookmarkController::class, 'getMyBookmarks']);
+        Route::get('/check/{type}/{id}', [BookmarkController::class, 'checkBookmark'])->where(['type' => 'lesson|course|module', 'id' => '[0-9]+']);
+        Route::put('/{id}', [BookmarkController::class, 'updateBookmark']);
+        Route::delete('/{id}', [BookmarkController::class, 'deleteBookmark']);
+    });
 });

@@ -41,7 +41,7 @@ class Kernel extends HttpKernel
         'api' => [
             \Illuminate\Routing\Middleware\ThrottleRequests::class . ':api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class, // Disabled for token-based auth
             \App\Http\Middleware\ETagMiddleware::class,  // ETag support for bandwidth savings
             \App\Http\Middleware\PerformanceMonitoring::class,
         ],

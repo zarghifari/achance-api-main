@@ -1,12 +1,22 @@
-# AChance API - Enhanced Course and EPUB APIs
+# AChance API Documentation
 
 ## Overview
 
-I've enhanced the API to provide:
+The AChance API provides comprehensive endpoints for:
 
-1. **Course API with complete navigation** - Get course with all modules, lessons, and next/prev navigation info
-2. **Lesson EPUB validation API** - Check EPUB file info and validate if local files are up-to-date
-3. **Performance Optimizations** - HTTP/2, database indexes, ETag caching, and increased concurrency
+1. **Self-Directed Learning (SDL) Features** ✨ NEW
+   - Learning Goals with progress tracking and milestones
+   - Learning Profiles with VARK assessment
+   - Bookmarks for lessons, courses, and modules
+   - Personalized content recommendations
+
+2. **Course Management**
+   - Complete course navigation with modules and lessons
+   - EPUB file management and validation
+   - Progress tracking and lesson completion
+
+3. **Performance Optimizations**
+   - HTTP/2, database indexes, ETag caching, and increased concurrency
 
 ## Performance Optimizations (December 2025)
 
@@ -62,7 +72,506 @@ curl -H "Authorization: Bearer TOKEN" \
 # Returns: 304 Not Modified (no body, saves bandwidth)
 ```
 
-## New API Endpoints
+---
+
+## Self-Directed Learning (SDL) Features ✨
+
+The SDL features enable personalized learning experiences with goal tracking, learning style assessment, and content bookmarking.
+
+### Learning Goals API
+
+#### 1. Create Learning Goal
+```
+POST /api/learning-goals
+```
+
+**Description:** Create a new learning goal with optional milestones.
+
+**Request Body:**
+```json
+{
+  "goal_type": "skill",
+  "title": "Master React Development",
+  "description": "Become proficient in React to build modern web applications",
+  "target_date": "2026-06-01",
+  "target_metric": "Complete 3 React courses and build 2 projects",
+  "target_value": 5,
+  "related_courses": [1, 2],
+  "related_skills": ["React", "JavaScript", "Component Design"],
+  "milestones": [
+    {
+      "title": "Complete React Fundamentals",
+      "description": "Learn the basics",
+      "sequence_order": 1
+    },
+    {
+      "title": "Build first React app",
+      "description": "Create a todo app",
+      "sequence_order": 2
+    }
+  ]
+}
+```
+
+**Goal Types:**
+- `skill` - Skill-based goals (e.g., "Learn React")
+- `course_completion` - Course completion goals
+- `time_based` - Time-based goals (e.g., "Study 30 hours")
+- `certificate` - Certification goals
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "user_id": 1,
+    "goal_type": "skill",
+    "title": "Master React Development",
+    "description": "Become proficient in React to build modern web applications",
+    "target_date": "2026-06-01",
+    "target_metric": "Complete 3 React courses and build 2 projects",
+    "status": "active",
+    "days_remaining": 165,
+    "on_track": true,
+    "progress": {
+      "id": 1,
+      "current_value": "0.00",
+      "target_value": "5.00",
+      "percentage": 0,
+      "last_updated": "2025-12-18T10:30:00Z"
+    },
+    "milestones": [
+      {
+        "id": 1,
+        "title": "Complete React Fundamentals",
+        "description": "Learn the basics",
+        "sequence_order": 1,
+        "is_achieved": false,
+        "achieved_at": null
+      }
+    ],
+    "related_courses": [1, 2],
+    "related_skills": ["React", "JavaScript", "Component Design"],
+    "created_at": "2025-12-18T10:30:00Z"
+  },
+  "message": "Learning goal created successfully"
+}
+```
+
+#### 2. Get All Learning Goals
+```
+GET /api/learning-goals?status=active&goal_type=skill
+```
+
+**Query Parameters:**
+- `status` - Filter by status: `active`, `achieved`, `abandoned`, `on_hold`
+- `goal_type` - Filter by goal type
+- `on_track` - Filter by tracking status: `true`, `false`
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "summary": {
+      "total_goals": 5,
+      "active_goals": 3,
+      "achieved_goals": 2,
+      "on_track_percentage": 67
+    },
+    "goals": [
+      {
+        "id": 1,
+        "title": "Master React Development",
+        "goal_type": "skill",
+        "status": "active",
+        "progress_percentage": 40,
+        "days_remaining": 165,
+        "on_track": true,
+        "target_date": "2026-06-01",
+        "milestones_count": 4,
+        "achieved_milestones_count": 1
+      }
+    ]
+  }
+}
+```
+
+#### 3. Get Specific Goal
+```
+GET /api/learning-goals/{id}
+```
+
+**Response:** Returns detailed goal information including:
+- Complete progress history
+- All milestones with achievement status
+- Related courses and skills
+- On-track analysis
+
+#### 4. Track Progress
+```
+POST /api/learning-goals/{id}/progress
+```
+
+**Description:** Update progress towards a goal. Automatically checks for milestone achievements and goal completion.
+
+**Request Body:**
+```json
+{
+  "progress_value": 2,
+  "note": "Completed React Hooks course"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "goal_id": 1,
+    "current_value": "2.00",
+    "target_value": "5.00",
+    "percentage": 40,
+    "status": "active",
+    "milestone_achieved": {
+      "id": 2,
+      "title": "Build first React app",
+      "congratulations": "🎉 Congratulations! You've achieved a milestone!",
+      "sequence_order": 2
+    }
+  },
+  "message": "Progress updated successfully"
+}
+```
+
+**Automatic Features:**
+- Milestone achievement detection
+- Goal completion (status changes to "achieved")
+- Progress history tracking
+- On-track calculation
+
+#### 5. Update Goal
+```
+PUT /api/learning-goals/{id}
+```
+
+**Request Body:** (All fields optional)
+```json
+{
+  "title": "Master React & Next.js",
+  "target_date": "2026-08-01",
+  "status": "on_hold"
+}
+```
+
+#### 6. Delete Goal
+```
+DELETE /api/learning-goals/{id}
+```
+
+---
+
+### Learning Profile API
+
+#### 1. Get Learning Profile
+```
+GET /api/learning-profile
+```
+
+**Description:** Get complete learning profile including VARK learning style, preferences, and recommendations.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "user_id": 1,
+    "learning_style": {
+      "dominant_style": "Visual",
+      "scores": {
+        "visual": 62.5,
+        "auditory": 18.75,
+        "reading": 12.5,
+        "kinesthetic": 6.25
+      },
+      "description": "You learn best through visual aids like diagrams, charts, and videos.",
+      "recommendations": [
+        "Use mind maps and flowcharts",
+        "Watch video tutorials",
+        "Use color coding in notes",
+        "Create visual summaries"
+      ],
+      "last_assessment_date": "2025-12-18T10:00:00Z"
+    },
+    "preferences": {
+      "preferred_content_type": "video",
+      "preferred_lesson_length": "short",
+      "learning_pace": "fast",
+      "preferred_study_time": "morning",
+      "daily_study_goal_minutes": 60,
+      "likes_gamification": true,
+      "likes_group_learning": false,
+      "likes_challenges": true
+    }
+  }
+}
+```
+
+**VARK Learning Styles:**
+- **Visual (V)**: Learn through seeing - diagrams, charts, videos
+- **Auditory (A)**: Learn through hearing - discussions, podcasts
+- **Reading/Writing (R)**: Learn through text - articles, notes
+- **Kinesthetic (K)**: Learn through doing - hands-on practice
+
+#### 2. Submit VARK Assessment
+```
+POST /api/learning-profile/assessment
+```
+
+**Description:** Submit answers to the 16-question VARK learning style assessment.
+
+**Request Body:**
+```json
+{
+  "answers": ["V", "V", "A", "V", "K", "V", "R", "V", "A", "V", "V", "K", "V", "R", "V", "V"]
+}
+```
+
+**Answer Options:** Each answer must be one of:
+- `V` - Visual
+- `A` - Auditory  
+- `R` - Reading/Writing
+- `K` - Kinesthetic
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "learning_style": {
+      "dominant_style": "Visual",
+      "scores": {
+        "visual": 62.5,
+        "auditory": 12.5,
+        "reading": 12.5,
+        "kinesthetic": 12.5
+      },
+      "recommendations": [
+        "Focus on video-based learning materials",
+        "Use visual note-taking techniques",
+        "Create mind maps for complex topics"
+      ]
+    }
+  },
+  "message": "Learning style assessment completed successfully"
+}
+```
+
+#### 3. Update Preferences
+```
+PUT /api/learning-profile/preferences
+```
+
+**Request Body:**
+```json
+{
+  "preferred_content_type": "video",
+  "preferred_lesson_length": "short",
+  "learning_pace": "fast",
+  "preferred_study_time": "morning",
+  "daily_study_goal_minutes": 60,
+  "likes_gamification": true,
+  "likes_group_learning": false,
+  "likes_challenges": true
+}
+```
+
+**Valid Options:**
+- `preferred_content_type`: `video`, `text`, `audio`, `interactive`, `mixed`
+- `preferred_lesson_length`: `short` (<15 min), `medium` (15-30 min), `long` (>30 min)
+- `learning_pace`: `slow`, `medium`, `fast`
+- `preferred_study_time`: `morning`, `afternoon`, `evening`, `night`, `flexible`
+
+#### 4. Get Personalized Feed
+```
+GET /api/personalized-feed
+```
+
+**Description:** Get personalized course recommendations based on learning profile, goals, and progress.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "recommended_courses": [
+      {
+        "id": 5,
+        "title": "Advanced React Patterns",
+        "reason": "Matches your active goal: Master React Development",
+        "match_score": 95,
+        "estimated_duration": "4 hours"
+      }
+    ],
+    "continue_learning": [
+      {
+        "course_id": 2,
+        "course_title": "React Fundamentals",
+        "lesson_id": 15,
+        "lesson_title": "useState Hook",
+        "progress_percentage": 65
+      }
+    ],
+    "suggested_by_style": [
+      {
+        "id": 8,
+        "title": "Visual Design Principles",
+        "reason": "Recommended for Visual learners",
+        "content_type": "video"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### Bookmarks API
+
+#### 1. Toggle Bookmark
+```
+POST /api/bookmarks/{type}/{id}
+```
+
+**Description:** Create or remove a bookmark (toggle behavior).
+
+**Parameters:**
+- `type` - Resource type: `lesson`, `course`, or `module`
+- `id` - Resource ID
+
+**Request Body:** (optional)
+```json
+{
+  "note": "Important concept to review before exam"
+}
+```
+
+**Response (Created):**
+```json
+{
+  "success": true,
+  "bookmarked": true,
+  "data": {
+    "id": 1,
+    "user_id": 1,
+    "bookmarkable_type": "lesson",
+    "bookmarkable_id": 5,
+    "note": "Important concept to review before exam",
+    "created_at": "2025-12-18T10:30:00Z"
+  },
+  "message": "Bookmark created successfully"
+}
+```
+
+**Response (Removed):**
+```json
+{
+  "success": true,
+  "bookmarked": false,
+  "message": "Bookmark removed successfully"
+}
+```
+
+#### 2. Get All Bookmarks
+```
+GET /api/bookmarks?type=lesson
+```
+
+**Query Parameters:**
+- `type` - Filter by type: `lesson`, `course`, `module`
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "type": "lesson",
+      "resource": {
+        "id": 5,
+        "title": "React Hooks Deep Dive",
+        "course": "React Fundamentals",
+        "module": "Advanced Concepts"
+      },
+      "note": "Important concept to review",
+      "bookmarked_at": "2025-12-18T10:30:00Z"
+    },
+    {
+      "id": 2,
+      "type": "course",
+      "resource": {
+        "id": 3,
+        "title": "JavaScript Mastery",
+        "description": "Complete JavaScript course"
+      },
+      "note": "Great course recommended by mentor",
+      "bookmarked_at": "2025-12-17T15:20:00Z"
+    }
+  ],
+  "total": 2
+}
+```
+
+#### 3. Check Bookmark Status
+```
+GET /api/bookmarks/check/{type}/{id}
+```
+
+**Description:** Check if a resource is bookmarked.
+
+**Response:**
+```json
+{
+  "success": true,
+  "bookmarked": true,
+  "bookmark": {
+    "id": 1,
+    "note": "Important concept",
+    "created_at": "2025-12-18T10:30:00Z"
+  }
+}
+```
+
+#### 4. Update Bookmark Note
+```
+PUT /api/bookmarks/{id}
+```
+
+**Request Body:**
+```json
+{
+  "note": "Updated note - review before practical exam"
+}
+```
+
+#### 5. Delete Bookmark
+```
+DELETE /api/bookmarks/{id}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Bookmark deleted successfully"
+}
+```
+
+---
+
+## Course Management API
 
 ### 1. Course with Navigation
 ```
