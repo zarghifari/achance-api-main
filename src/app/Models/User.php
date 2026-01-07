@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
+use App\Models\Bookmark;
 
 class User extends Authenticatable
 {
@@ -57,5 +58,20 @@ class User extends Authenticatable
     public function attemptQuizzes()
     {
         return $this->hasMany(AttemptQuiz::class, 'user_id', 'id');
+    }
+
+    public function learningGoals()
+    {
+        return $this->hasMany(LearningGoal::class, 'user_id', 'id');
+    }
+
+    public function bookmarks()
+    {
+        return $this->hasMany(Bookmark::class, 'user_id', 'id');
+    }
+
+    public function learningProfile()
+    {
+        return $this->hasOne(LearningProfile::class, 'user_id', 'id');
     }
 }

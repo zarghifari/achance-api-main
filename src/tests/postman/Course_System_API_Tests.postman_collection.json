@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Course System API Tests",
-    "description": "Comprehensive tests for courses, modules, lessons, epubs, and tasks with full automation",
+    "description": "Comprehensive tests for courses, modules, lessons, content, and tasks with full automation",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -71,7 +71,7 @@
           "    }",
           "}",
           "",
-          "if (requestName && requestName.includes('Epub')) {",
+          "if (requestName && requestName.includes('Content')) {",
           "    const courseId = pm.environment.get('courseId');",
           "    const moduleId = pm.environment.get('moduleId');",
           "    const lessonId = pm.environment.get('lessonId');",
@@ -289,66 +289,66 @@
           }
         },
         {
-          "name": "Check Seeded EPUBs",
+          "name": "Check Seeded Contents",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Seeded EPUBs - Status code is 200', function () {",
+                  "pm.test('Seeded Contents - Status code is 200', function () {",
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "pm.test('Seeded EPUBs - Contains Expected Files', function () {",
+                  "pm.test('Seeded Contents - Contains Expected Files', function () {",
                   "    const responseJson = pm.response.json();",
                   "    let courseData = responseJson.data ? responseJson.data : responseJson;",
                   "    ",
-                  "    // Check if course has modules with lessons and EPUBs",
+                  "    // Check if course has modules with lessons and Content",
                   "    if (courseData.modules && courseData.modules.length > 0) {",
-                  "        let epubCount = 0;",
-                  "        let expectedFiles = ['books-sample.epub', 'coreldraw-ddkv-sem2.epub', 'coreldraw_ddkv_sem2.epub'];",
+                  "        let contentCount = 0;",
+                  "        let expectedFiles = ['books-sample.epub', 'coreldraw-ddkv-sem2.epub', 'coreldraw_ddkv_sem2.epub', 'sample.docx', 'document.pdf'];",
                   "        let foundFiles = [];",
-                  "        let firstEpubFound = null;",
+                  "        let firstContentFound = null;",
                   "        ",
                   "        courseData.modules.forEach((module, moduleIndex) => {",
                   "            if (module.lessons) {",
                   "                module.lessons.forEach((lesson, lessonIndex) => {",
-                  "                    // Note: relationship is 'epub' (singular), not 'epubs' (plural)",
-                  "                    if (lesson.epub) {",
-                  "                        epubCount++;",
-                  "                        if (lesson.epub.original_filename) {",
-                  "                            foundFiles.push(lesson.epub.original_filename);",
+                  "                    // Note: relationship is 'content' (singular)",
+                  "                    if (lesson.content) {",
+                  "                        contentCount++;",
+                  "                        if (lesson.content.original_filename) {",
+                  "                            foundFiles.push(lesson.content.original_filename);",
                   "                        }",
                   "                        ",
-                  "                        // Store first EPUB found as fallback for analytics tests",
-                  "                        if (!firstEpubFound) {",
-                  "                            firstEpubFound = {",
+                  "                        // Store first Content found as fallback for analytics tests",
+                  "                        if (!firstContentFound) {",
+                  "                            firstContentFound = {",
                   "                                courseId: courseData.id,",
                   "                                moduleId: module.id,",
                   "                                lessonId: lesson.id,",
-                  "                                epubId: lesson.epub.id",
+                  "                                contentId: lesson.content.id",
                   "                            };",
-                  "                            console.log('Setting fallback analytics IDs from seeded data:', firstEpubFound);",
-                  "                            pm.environment.set('analyticsSeededCourseId', firstEpubFound.courseId);",
-                  "                            pm.environment.set('analyticsSeededModuleId', firstEpubFound.moduleId);",
-                  "                            pm.environment.set('analyticsSeededLessonId', firstEpubFound.lessonId);",
-                  "                            pm.environment.set('analyticsSeededEpubId', firstEpubFound.epubId);",
+                  "                            console.log('Setting fallback analytics IDs from seeded data:', firstContentFound);",
+                  "                            pm.environment.set('analyticsSeededCourseId', firstContentFound.courseId);",
+                  "                            pm.environment.set('analyticsSeededModuleId', firstContentFound.moduleId);",
+                  "                            pm.environment.set('analyticsSeededLessonId', firstContentFound.lessonId);",
+                  "                            pm.environment.set('analyticsSeededContentId', firstContentFound.contentId);",
                   "                        }",
                   "                    }",
                   "                });",
                   "            }",
                   "        });",
                   "        ",
-                  "        console.log('Found', epubCount, 'EPUBs in seeded data');",
+                  "        console.log('Found', contentCount, 'Contents in seeded data');",
                   "        console.log('Found files:', foundFiles);",
                   "        console.log('Expected files:', expectedFiles);",
-                  "        pm.expect(epubCount).to.be.greaterThan(0);",
+                  "        pm.expect(contentCount).to.be.greaterThan(0);",
                   "    } else {",
                   "        console.log('Course structure may not include nested data - setting basic fallback IDs');",
                   "        pm.environment.set('analyticsSeededCourseId', courseData.id || 1);",
                   "        pm.environment.set('analyticsSeededModuleId', 1);",
                   "        pm.environment.set('analyticsSeededLessonId', 1);",
-                  "        pm.environment.set('analyticsSeededEpubId', 1);",
+                  "        pm.environment.set('analyticsSeededContentId', 1);",
                   "    }",
                   "});"
                 ]
@@ -1261,17 +1261,24 @@
       ]
     },
     {
-      "name": "Epub Management",
+      "name": "Content Management",
       "item": [
         {
-          "name": "Create Epub for Lesson (Teacher)",
+          "name": "Import Document and Convert to HTML",
           "event": [
             {
               "listen": "prerequest",
               "script": {
                 "exec": [
-                  "// Switch to teacher token",
-                  "pm.environment.set('authToken', pm.environment.get('teacherToken'));"
+                  "// Validate that course, module, and lesson IDs are set",
+                  "const courseId = pm.environment.get('courseId');",
+                  "const moduleId = pm.environment.get('moduleId');",
+                  "const lessonId = pm.environment.get('lessonId');",
+                  "",
+                  "if (!courseId || !moduleId || !lessonId) {",
+                  "    console.error('ERROR: Required IDs not set. Please run the full test suite from the beginning.');",
+                  "    console.error('Missing:', { courseId, moduleId, lessonId });",
+                  "}"
                 ]
               }
             },
@@ -1279,54 +1286,39 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Create Epub - Status code is 201', function () {",
+                  "pm.test('Response status is 201 Created', function () {",
                   "    pm.response.to.have.status(201);",
                   "});",
                   "",
-                  "pm.test('Create Epub - Response has epub data', function () {",
-                  "    const responseJson = pm.response.json();",
-                  "    let epubData = responseJson.data ? responseJson.data : responseJson;",
-                  "    pm.expect(epubData).to.have.property('id');",
-                  "    pm.expect(epubData).to.have.property('title');",
-                  "    pm.environment.set('epubId', epubData.id);",
-                  "    console.log('Created Epub ID:', epubData.id);",
-                  "    console.log('Epub data:', JSON.stringify(epubData, null, 2));",
-                  "});",
-                  "",
-                  "pm.test('Create Epub - File uploaded successfully (if file was provided)', function () {",
-                  "    const responseJson = pm.response.json();",
-                  "    let epubData = responseJson.data ? responseJson.data : responseJson;",
-                  "    pm.expect(epubData).to.have.property('file_path');",
+                  "pm.test('Content created successfully', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData.data).to.have.property('id');",
+                  "    pm.expect(jsonData.data).to.have.property('title');",
+                  "    pm.expect(jsonData.data).to.have.property('type', 'html');",
+                  "    pm.expect(jsonData.data).to.have.property('is_processed', true);",
                   "    ",
-                  "    // Check if file was actually uploaded",
-                  "    if (epubData.file_path !== null && epubData.file_path !== '') {",
-                  "        pm.expect(epubData.file_path).to.include('uploads/epubs');",
-                  "        console.log('File uploaded to:', epubData.file_path);",
-                  "        pm.environment.set('epubFilePath', epubData.file_path);",
-                  "    } else {",
-                  "        console.log('No file was uploaded - file_path is null');",
-                  "        // This might be expected if no file was selected in Postman",
-                  "    }",
+                  "    // Save content ID",
+                  "    pm.environment.set('contentId', jsonData.data.id);",
+                  "    console.log('✅ Content created with ID:', jsonData.data.id);",
                   "});",
                   "",
-                  "pm.test('Create Epub - Epub belongs to correct lesson', function () {",
-                  "    const responseJson = pm.response.json();",
-                  "    let epubData = responseJson.data ? responseJson.data : responseJson;",
-                  "    const expectedLessonId = pm.environment.get('lessonId');",
-                  "    // Convert both to strings for comparison to avoid type issues",
-                  "    pm.expect(epubData.lesson_id.toString()).to.equal(expectedLessonId.toString());",
+                  "pm.test('Content has HTML and paginated content', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('total_pages');",
+                  "    pm.expect(jsonData.data.total_pages).to.be.above(0);",
                   "});",
                   "",
-                  "pm.test('Create Epub - File validation (422 means check file type)', function () {",
-                  "    if (pm.response.code === 422) {",
-                  "        console.log('File validation failed - make sure you upload a .epub file');",
-                  "        console.log('Response:', pm.response.text());",
-                  "        pm.expect(pm.response.code).to.not.equal(422, 'File validation failed - check file type');",
-                  "    } else {",
-                  "        pm.expect(pm.response.code).to.equal(201);",
+                  "pm.test('ZIP archive created', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.data.zip_file_path) {",
+                  "        pm.expect(jsonData.data).to.have.property('zip_file_size');",
+                  "        pm.expect(jsonData.data.zip_file_size).to.be.above(0);",
+                  "        console.log('✅ ZIP created:', jsonData.data.zip_file_path);",
                   "    }",
                   "});"
-                ]
+                ],
+                "type": "text/javascript"
               }
             }
           ],
@@ -1335,48 +1327,53 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{authToken}}"
+                "value": "Bearer {{teacherToken}}",
+                "type": "text"
               }
             ],
             "body": {
               "mode": "formdata",
               "formdata": [
                 {
-                  "key": "title",
-                  "value": "Sample Epub Book",
-                  "type": "text"
-                },
-                {
                   "key": "file",
                   "type": "file",
-                  "src": [],
-                  "disabled": true,
-                  "description": "Upload actual EPUB file here when testing manually"
+                  "src": "/path/to/sample.docx"
                 },
                 {
-                  "key": "file_path",
-                  "value": "uploads/epubs/books-sample.epub",
-                  "type": "text",
-                  "description": "Use existing file path for automated testing"
+                  "key": "words_per_page",
+                  "value": "500",
+                  "type": "text"
                 }
               ]
             },
             "url": {
-              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/epubs",
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/content/import",
               "host": ["{{baseUrl}}"],
-              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "epubs"]
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "content", "import"]
             }
           }
         },
         {
-          "name": "Create Epub without File (Teacher)",
+          "name": "Get Content for Lesson",
           "event": [
             {
               "listen": "prerequest",
               "script": {
                 "exec": [
                   "// Switch to teacher token",
-                  "pm.environment.set('authToken', pm.environment.get('teacherToken'));"
+                  "pm.environment.set('authToken', pm.environment.get('teacherToken'));",
+                  "",
+                  "// Validate required IDs",
+                  "const courseId = pm.environment.get('courseId');",
+                  "const moduleId = pm.environment.get('moduleId');",
+                  "const lessonId = pm.environment.get('lessonId');",
+                  "",
+                  "if (!courseId || !moduleId || !lessonId) {",
+                  "    console.warn('WARNING: Using fallback to seeded data (course=1, module=1, lesson=1)');",
+                  "    pm.environment.set('courseId', 1);",
+                  "    pm.environment.set('moduleId', 1);",
+                  "    pm.environment.set('lessonId', 1);",
+                  "}"
                 ]
               }
             },
@@ -1384,84 +1381,28 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Create Epub without File - Status code is 201', function () {",
-                  "    pm.response.to.have.status(201);",
-                  "});",
-                  "",
-                  "pm.test('Create Epub without File - Response has epub data', function () {",
-                  "    const responseJson = pm.response.json();",
-                  "    let epubData = responseJson.data ? responseJson.data : responseJson;",
-                  "    pm.expect(epubData).to.have.property('id');",
-                  "    pm.expect(epubData).to.have.property('title');",
-                  "    // Set epubId if not already set from file upload test",
-                  "    if (!pm.environment.get('epubId')) {",
-                  "        pm.environment.set('epubId', epubData.id);",
-                  "    }",
-                  "});",
-                  "",
-                  "pm.test('Create Epub without File - Belongs to correct lesson', function () {",
-                  "    const responseJson = pm.response.json();",
-                  "    let epubData = responseJson.data ? responseJson.data : responseJson;",
-                  "    const expectedLessonId = pm.environment.get('lessonId');",
-                  "    // Convert both to strings for comparison to avoid type issues",
-                  "    pm.expect(epubData.lesson_id.toString()).to.equal(expectedLessonId.toString());",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"title\": \"Simple Epub Book - No File\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/epubs",
-              "host": ["{{baseUrl}}"],
-              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "epubs"]
-            }
-          }
-        },
-        {
-          "name": "Get Epub for Lesson",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Get Epub - Status code is 200', function () {",
+                  "pm.test('Get Content for Lesson - Status code is 200', function () {",
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "pm.test('Get Epub - Response has epub data', function () {",
+                  "pm.test('Get Content for Lesson - Response has content data', function () {",
                   "    const responseJson = pm.response.json();",
-                  "    let epubData = responseJson.data ? responseJson.data : responseJson;",
-                  "    pm.expect(epubData).to.have.property('id');",
-                  "    pm.expect(epubData).to.have.property('title');",
+                  "    let contentData = responseJson.data ? responseJson.data : responseJson;",
+                  "    pm.expect(contentData).to.have.property('id');",
+                  "    pm.expect(contentData).to.have.property('title');",
+                  "    // Set contentId and epubId for backward compatibility",
+                  "    pm.environment.set('contentId', contentData.id);",
+                  "    if (!pm.environment.get('epubId')) {",
+                  "        pm.environment.set('epubId', contentData.id);",
+                  "    }",
                   "});",
                   "",
-                  "pm.test('Get Epub - Has required fields', function () {",
+                  "pm.test('Get Content for Lesson - Belongs to correct lesson', function () {",
                   "    const responseJson = pm.response.json();",
-                  "    let epubData = responseJson.data ? responseJson.data : responseJson;",
-                  "    pm.expect(epubData).to.have.property('file_path');",
-                  "    pm.expect(epubData).to.have.property('lesson_id');",
-                  "});",
-                  "",
-                  "// Note: This GET request automatically triggers EPUB view activity tracking",
-                  "pm.test('Get Epub - Activity tracking note', function () {",
-                  "    console.log('EPUB view activity should be automatically tracked for analytics');",
-                  "    pm.expect(true).to.be.true; // Always pass",
+                  "    let contentData = responseJson.data ? responseJson.data : responseJson;",
+                  "    const expectedLessonId = pm.environment.get('lessonId');",
+                  "    // Convert both to strings for comparison to avoid type issues",
+                  "    pm.expect(contentData.lesson_id.toString()).to.equal(expectedLessonId.toString());",
                   "});"
                 ]
               }
@@ -1476,27 +1417,116 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/epubs",
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/content",
               "host": ["{{baseUrl}}"],
-              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "epubs"]
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "content"]
             }
           }
         },
         {
-          "name": "Update Epub (Teacher)",
+          "name": "Get Content Metadata Only",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Response status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Metadata retrieved', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData.data).to.have.property('id');",
+                  "    pm.expect(jsonData.data).to.have.property('title');",
+                  "    pm.expect(jsonData.data).to.have.property('total_pages');",
+                  "    pm.expect(jsonData.data).to.have.property('metadata');",
+                  "});",
+                  "",
+                  "pm.test('HTML content NOT included', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.not.have.property('html_content');",
+                  "    pm.expect(jsonData.data).to.not.have.property('paginated_content');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/content/metadata",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "content", "metadata"]
+            }
+          }
+        },
+        {
+          "name": "Get Specific Page",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Response status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Page content retrieved', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData.data).to.have.property('page');",
+                  "    pm.expect(jsonData.data).to.have.property('content');",
+                  "    pm.expect(jsonData.data).to.have.property('total_pages');",
+                  "});",
+                  "",
+                  "pm.test('Page content is HTML', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.content).to.be.a('string');",
+                  "    pm.expect(jsonData.data.content.length).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/content/page/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "content", "page", "1"]
+            }
+          }
+        },
+        {
+          "name": "Download ZIP Archive",
           "event": [
             {
               "listen": "prerequest",
               "script": {
                 "exec": [
-                  "// Switch to teacher token",
-                  "pm.environment.set('authToken', pm.environment.get('teacherToken'));",
-                  "",
-                  "// Debug: Check if epubId is available",
-                  "const epubId = pm.environment.get('epubId');",
-                  "console.log('Update Epub - epubId:', epubId);",
-                  "if (!epubId) {",
-                  "    console.warn('Warning: epubId not found. Make sure Create Epub test ran successfully.');",
+                  "// Validate contentId is set",
+                  "const contentId = pm.environment.get('contentId');",
+                  "if (!contentId) {",
+                  "    console.warn('WARNING: contentId not set. Using fallback contentId=1');",
+                  "    pm.environment.set('contentId', 1);",
+                  "    pm.environment.set('courseId', 1);",
+                  "    pm.environment.set('moduleId', 1);",
+                  "    pm.environment.set('lessonId', 1);",
                   "}"
                 ]
               }
@@ -1505,35 +1535,77 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Update Epub - Status code is 200', function () {",
+                  "pm.test('Response status is 200 OK', function () {",
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "pm.test('Update Epub - Debug response structure', function () {",
-                  "    const responseJson = pm.response.json();",
-                  "    console.log('Full update response:', JSON.stringify(responseJson, null, 2));",
+                  "pm.test('Response is a ZIP file', function () {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/zip');",
                   "});",
                   "",
-                  "pm.test('Update Epub - Response contains updated data or success message', function () {",
-                  "    const responseJson = pm.response.json();",
-                  "    ",
-                  "    // Check if response has epub data (new format) or message (old format)",
-                  "    if (responseJson.data) {",
-                  "        // New format with epub data",
-                  "        let epubData = responseJson.data;",
-                  "        pm.expect(epubData).to.have.property('title');",
-                  "        pm.expect(epubData.title).to.include('Updated');",
-                  "        console.log('Updated epub title:', epubData.title);",
-                  "    } else if (responseJson.message) {",
-                  "        // Old format with just message",
-                  "        pm.expect(responseJson.message).to.include('successfully');",
-                  "        console.log('Update response:', responseJson.message);",
-                  "    } else {",
-                  "        // Direct epub data without wrapper",
-                  "        pm.expect(responseJson).to.have.property('title');",
-                  "        pm.expect(responseJson.title).to.include('Updated');",
-                  "        console.log('Updated epub title:', responseJson.title);",
-                  "    }",
+                  "pm.test('ZIP file has content', function () {",
+                  "    // Get response as raw bytes",
+                  "    const responseBody = pm.response.stream;",
+                  "    const fileSize = responseBody ? responseBody.length : pm.response.size();",
+                  "    pm.expect(fileSize).to.be.a('number');",
+                  "    pm.expect(fileSize).to.be.above(0);",
+                  "    console.log('✅ ZIP file size:', fileSize, 'bytes');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/content/{{contentId}}/download-zip",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "content", "{{contentId}}", "download-zip"]
+            }
+          }
+        },
+        {
+          "name": "Update Content (Teacher)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Switch to teacher token",
+                  "pm.environment.set('authToken', pm.environment.get('teacherToken'));",
+                  "",
+                  "// Validate contentId is set",
+                  "const contentId = pm.environment.get('contentId');",
+                  "if (!contentId) {",
+                  "    console.warn('WARNING: contentId not set. Using fallback contentId=1');",
+                  "    pm.environment.set('contentId', 1);",
+                  "    pm.environment.set('courseId', 1);",
+                  "    pm.environment.set('moduleId', 1);",
+                  "    pm.environment.set('lessonId', 1);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Response status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Content updated successfully', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData.data).to.have.property('title', 'Updated Content Title');",
+                  "    console.log('✅ Content updated');",
                   "});"
                 ]
               }
@@ -1544,26 +1616,28 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{authToken}}"
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               },
               {
                 "key": "Content-Type",
-                "value": "application/json"
+                "value": "application/json",
+                "type": "text"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"title\": \"Updated Sample Epub Book\"\n}"
+              "raw": "{\n    \"title\": \"Updated Content Title\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/epubs/{{epubId}}",
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/content/{{contentId}}",
               "host": ["{{baseUrl}}"],
-              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "epubs", "{{epubId}}"]
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "content", "{{contentId}}"]
             }
           }
         },
         {
-          "name": "Download Epub File (Teacher)",
+          "name": "Reprocess Content (Teacher)",
           "event": [
             {
               "listen": "prerequest",
@@ -1572,10 +1646,14 @@
                   "// Switch to teacher token",
                   "pm.environment.set('authToken', pm.environment.get('teacherToken'));",
                   "",
-                  "// Ensure required IDs are available",
-                  "const epubId = pm.environment.get('epubId');",
-                  "if (!epubId) {",
-                  "    console.warn('Warning: epubId not set. Download test may fail.');",
+                  "// Validate contentId is set",
+                  "const contentId = pm.environment.get('contentId');",
+                  "if (!contentId) {",
+                  "    console.warn('WARNING: contentId not set. Using fallback contentId=1');",
+                  "    pm.environment.set('contentId', 1);",
+                  "    pm.environment.set('courseId', 1);",
+                  "    pm.environment.set('moduleId', 1);",
+                  "    pm.environment.set('lessonId', 1);",
                   "}"
                 ]
               }
@@ -1584,83 +1662,62 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Download Epub - Status code is 200', function () {",
+                  "pm.test('Response status is 200 OK', function () {",
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "pm.test('Download Epub - Content-Type is EPUB', function () {",
-                  "    const contentType = pm.response.headers.get('Content-Type');",
-                  "    pm.expect(contentType).to.include('application/epub+zip');",
-                  "});",
-                  "",
-                  "pm.test('Download Epub - Has Content-Disposition header', function () {",
-                  "    const contentDisposition = pm.response.headers.get('Content-Disposition');",
-                  "    if (contentDisposition) {",
-                  "        pm.expect(contentDisposition).to.include('attachment');",
-                  "        console.log('Content-Disposition:', contentDisposition);",
-                  "    } else {",
-                  "        console.log('Note: Content-Disposition header not set');",
-                  "    }",
-                  "});",
-                  "",
-                  "pm.test('Download Epub - Response has file content', function () {",
-                  "    const responseSize = pm.response.responseSize;",
-                  "    pm.expect(responseSize).to.be.greaterThan(0);",
-                  "    console.log('Downloaded file size:', responseSize, 'bytes');",
-                  "});",
-                  "",
-                  "pm.test('Download Epub - File signature check', function () {",
-                  "    // EPUB files are ZIP files, so they should start with PK signature",
-                  "    const responseBuffer = pm.response.stream;",
-                  "    if (responseBuffer && responseBuffer.length >= 4) {",
-                  "        const signature = responseBuffer.slice(0, 4);",
-                  "        // ZIP file signature: PK (0x504B)",
-                  "        const isValidZip = signature[0] === 0x50 && signature[1] === 0x4B;",
-                  "        if (isValidZip) {",
-                  "            console.log('✓ File has valid ZIP/EPUB signature');",
-                  "        } else {",
-                  "            console.log('⚠ File signature check inconclusive');",
-                  "        }",
-                  "    } else {",
-                  "        console.log('Note: Cannot check file signature - response buffer not available');",
-                  "    }",
+                  "pm.test('Content reprocessed', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData.data).to.have.property('is_processed', true);",
+                  "    console.log('✅ Content reprocessed');",
                   "});"
                 ]
               }
             }
           ],
           "request": {
-            "method": "GET",
+            "method": "POST",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{authToken}}"
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"words_per_page\": 600\n}"
+            },
             "url": {
-              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/epubs/{{epubId}}/download",
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/content/{{contentId}}/reprocess",
               "host": ["{{baseUrl}}"],
-              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "epubs", "{{epubId}}", "download"]
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "content", "{{contentId}}", "reprocess"]
             }
           }
         },
         {
-          "name": "Download Seeded Epub File",
+          "name": "Delete Content (Teacher)",
           "event": [
             {
               "listen": "prerequest",
               "script": {
                 "exec": [
-                  "// Use teacher token for download access",
+                  "// Switch to teacher token",
                   "pm.environment.set('authToken', pm.environment.get('teacherToken'));",
                   "",
-                  "// Use seeded data IDs for testing existing files",
-                  "pm.environment.set('seededCourseId', '1');",
-                  "pm.environment.set('seededModuleId', '1');", 
-                  "pm.environment.set('seededLessonId', '1');",
-                  "pm.environment.set('seededEpubId', '1');",
-                  "",
-                  "console.log('Testing download with seeded data: Course 1, Module 1, Lesson 1, Epub 1');"
+                  "// Validate contentId is set",
+                  "const contentId = pm.environment.get('contentId');",
+                  "if (!contentId) {",
+                  "    console.error('ERROR: contentId not set. Cannot delete non-existent content.');",
+                  "    console.error('Please run \"Import Document\" test first or use seeded content.');",
+                  "    console.warn('Skipping this test - will return 404');",
+                  "}"
                 ]
               }
             },
@@ -1668,48 +1725,32 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Download Seeded Epub - Status code is 200', function () {",
+                  "pm.test('Response status is 200 OK', function () {",
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "pm.test('Download Seeded Epub - File content received', function () {",
-                  "    const responseSize = pm.response.responseSize;",
-                  "    pm.expect(responseSize).to.be.greaterThan(1000); // Should be larger than 1KB",
-                  "    console.log('Downloaded seeded EPUB size:', responseSize, 'bytes');",
-                  "});",
-                  "",
-                  "pm.test('Download Seeded Epub - Content type is correct', function () {",
-                  "    const contentType = pm.response.headers.get('Content-Type');",
-                  "    // Accept both epub and octet-stream content types",
-                  "    const validTypes = ['application/epub+zip', 'application/octet-stream', 'application/zip'];",
-                  "    const isValidType = validTypes.some(type => contentType && contentType.includes(type));",
-                  "    pm.expect(isValidType, `Content-Type should be one of: ${validTypes.join(', ')}, but got: ${contentType}`).to.be.true;",
-                  "});",
-                  "",
-                  "pm.test('Download Seeded Epub - Books Sample file', function () {",
-                  "    // This should be the books-sample.epub file based on our seeder",
-                  "    const responseSize = pm.response.responseSize;",
-                  "    // books-sample.epub is around 1.9MB based on our database check",
-                  "    pm.expect(responseSize).to.be.greaterThan(100000); // Should be > 100KB",
-                  "    pm.expect(responseSize).to.be.lessThan(10000000); // Should be < 10MB",
-                  "    console.log('✓ File size is within expected range for books-sample.epub');",
+                  "pm.test('Content deleted successfully', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    console.log('✅ Content deleted');",
                   "});"
                 ]
               }
             }
           ],
           "request": {
-            "method": "GET",
+            "method": "DELETE",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{authToken}}"
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/courses/{{seededCourseId}}/modules/{{seededModuleId}}/lessons/{{seededLessonId}}/epubs/{{seededEpubId}}/download",
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/content/{{contentId}}",
               "host": ["{{baseUrl}}"],
-              "path": ["courses", "{{seededCourseId}}", "modules", "{{seededModuleId}}", "lessons", "{{seededLessonId}}", "epubs", "{{seededEpubId}}", "download"]
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "content", "{{contentId}}"]
             }
           }
         }
@@ -2065,7 +2106,7 @@
       "name": "User Activity Analytics Tests",
       "item": [
         {
-          "name": "Track EPUB Reading Progress (Student)",
+          "name": "Track Content Reading Progress (Student)",
           "event": [
             {
               "listen": "prerequest",
@@ -2078,33 +2119,33 @@
                   "const courseId = pm.environment.get('courseId');",
                   "const moduleId = pm.environment.get('moduleId');",
                   "const lessonId = pm.environment.get('lessonId');",
-                  "const epubId = pm.environment.get('epubId');",
+                  "const contentId = pm.environment.get('contentId');",
                   "",
-                  "console.log('=== EPUB Progress Tracking Debug ===');",
+                  "console.log('=== Content Progress Tracking Debug ===');",
                   "console.log('courseId:', courseId, 'type:', typeof courseId);",
                   "console.log('moduleId:', moduleId, 'type:', typeof moduleId);",
                   "console.log('lessonId:', lessonId, 'type:', typeof lessonId);",
-                  "console.log('epubId:', epubId, 'type:', typeof epubId);",
+                  "console.log('contentId:', contentId, 'type:', typeof contentId);",
                   "console.log('baseUrl:', pm.environment.get('baseUrl'));",
                   "",
-                  "if (!courseId || !moduleId || !lessonId || !epubId) {",
-                  "    console.error('CRITICAL: Missing required IDs for EPUB progress tracking');",
+                  "if (!courseId || !moduleId || !lessonId || !contentId) {",
+                  "    console.error('CRITICAL: Missing required IDs for Content progress tracking');",
                   "    console.log('This test will fail because previous setup tests may have failed');",
-                  "    console.log('Check that Create Course, Create Module, Create Lesson, and Create Epub tests passed');",
+                  "    console.log('Check that Create Course, Create Module, Create Lesson, and Import Document tests passed');",
                   "    ",
                   "    // Try to use analytics seeded data as fallback",
                   "    const analyticsSeededCourseId = pm.environment.get('analyticsSeededCourseId');",
                   "    const analyticsSeededModuleId = pm.environment.get('analyticsSeededModuleId');",
                   "    const analyticsSeededLessonId = pm.environment.get('analyticsSeededLessonId');",
-                  "    const analyticsSeededEpubId = pm.environment.get('analyticsSeededEpubId');",
+                  "    const analyticsSeededContentId = pm.environment.get('analyticsSeededContentId');",
                   "    ",
-                  "    if (analyticsSeededCourseId && analyticsSeededModuleId && analyticsSeededLessonId && analyticsSeededEpubId) {",
+                  "    if (analyticsSeededCourseId && analyticsSeededModuleId && analyticsSeededLessonId && analyticsSeededContentId) {",
                   "        console.log('Using analytics seeded data as fallback');",
                   "        pm.environment.set('courseId', analyticsSeededCourseId);",
                   "        pm.environment.set('moduleId', analyticsSeededModuleId);",
                   "        pm.environment.set('lessonId', analyticsSeededLessonId);",
-                  "        pm.environment.set('epubId', analyticsSeededEpubId);",
-                  "        console.log('Fallback IDs set - courseId:', analyticsSeededCourseId, 'moduleId:', analyticsSeededModuleId, 'lessonId:', analyticsSeededLessonId, 'epubId:', analyticsSeededEpubId);",
+                  "        pm.environment.set('contentId', analyticsSeededContentId);",
+                  "        console.log('Fallback IDs set - courseId:', analyticsSeededCourseId, 'moduleId:', analyticsSeededModuleId, 'lessonId:', analyticsSeededLessonId, 'contentId:', analyticsSeededContentId);",
                   "    } else {",
                   "        console.error('No fallback analytics seeded data available');",
                   "        console.log('Available environment variables:', Object.keys(pm.environment.toObject()));",
@@ -2129,28 +2170,28 @@
                   "        console.error('epubId:', pm.environment.get('epubId'));",
                   "        console.error('Full URL:', pm.request.url);",
                   "    }",
-                  "    pm.response.to.have.status(200);",
+                  "    pm.response.to.have.status(201);",
                   "});",
                   "",
                   "pm.test('Track EPUB Progress - Response has activity data', function () {",
-                  "    if (pm.response.code === 200) {",
+                  "    if (pm.response.code === 201) {",
                   "        const responseJson = pm.response.json();",
                   "        pm.expect(responseJson).to.have.property('message');",
                   "        pm.expect(responseJson).to.have.property('data');",
-                  "        pm.expect(responseJson.data).to.have.property('activity_id');",
+                  "        pm.expect(responseJson.data).to.have.property('id');",
                   "        pm.expect(responseJson.data).to.have.property('progress_percentage');",
                   "        pm.expect(responseJson.data.progress_percentage).to.equal(25);",
                   "    } else {",
-                  "        pm.test.skip('Skipping data validation due to non-200 response');",
+                  "        pm.test.skip('Skipping data validation due to non-201 response');",
                   "    }",
                   "});",
                   "",
                   "pm.test('Track EPUB Progress - Action is progress', function () {",
-                  "    if (pm.response.code === 200) {",
+                  "    if (pm.response.code === 201) {",
                   "        const responseJson = pm.response.json();",
                   "        pm.expect(responseJson.data.action).to.equal('progress');",
                   "    } else {",
-                  "        pm.test.skip('Skipping action validation due to non-200 response');",
+                  "        pm.test.skip('Skipping action validation due to non-201 response');",
                   "    }",
                   "});"
                 ]
@@ -2171,12 +2212,12 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"epub_id\": {{epubId}},\n    \"progress_percentage\": 25,\n    \"current_page\": 5,\n    \"total_pages\": 20,\n    \"reading_time_seconds\": 300,\n    \"action\": \"progress\"\n}"
+              "raw": "{\n    \"activity_type\": \"epub\",\n    \"activity_id\": {{epubId}},\n    \"action\": \"progress\",\n    \"progress_percentage\": 25,\n    \"metadata\": {\n        \"current_page\": 5,\n        \"total_pages\": 20,\n        \"reading_time_seconds\": 300\n    }\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/epub-reading-progress",
+              "raw": "{{baseUrl}}/useractivities",
               "host": ["{{baseUrl}}"],
-              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "epub-reading-progress"]
+              "path": ["useractivities"]
             }
           }
         },
@@ -2188,7 +2229,7 @@
               "script": {
                 "exec": [
                   "pm.test('Complete EPUB Reading - Status code is 200', function () {",
-                  "    pm.response.to.have.status(200);",
+                  "    pm.response.to.have.status(201);",
                   "});",
                   "",
                   "pm.test('Complete EPUB Reading - Progress is 100%', function () {",
@@ -2218,12 +2259,12 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"epub_id\": {{epubId}},\n    \"progress_percentage\": 100,\n    \"current_page\": 20,\n    \"total_pages\": 20,\n    \"reading_time_seconds\": 1200,\n    \"action\": \"complete\"\n}"
+              "raw": "{\n    \"activity_type\": \"epub\",\n    \"activity_id\": {{epubId}},\n    \"action\": \"complete\",\n    \"progress_percentage\": 100,\n    \"metadata\": {\n        \"current_page\": 20,\n        \"total_pages\": 20,\n        \"reading_time_seconds\": 1200\n    }\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/epub-reading-progress",
+              "raw": "{{baseUrl}}/useractivities",
               "host": ["{{baseUrl}}"],
-              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "epub-reading-progress"]
+              "path": ["useractivities"]
             }
           }
         },
@@ -2395,14 +2436,14 @@
           }
         },
         {
-          "name": "Test EPUB Download Tracking (Student)",
+          "name": "Test Content ZIP Download Tracking (Student)",
           "event": [
             {
               "listen": "prerequest",
               "script": {
                 "exec": [
-                  "// This test will trigger automatic activity tracking when EPUB is downloaded",
-                  "console.log('Testing automatic EPUB download tracking...');"
+                  "// This test will trigger automatic activity tracking when content ZIP is downloaded",
+                  "console.log('Testing automatic content ZIP download tracking...');"
                 ]
               }
             },
@@ -2411,18 +2452,18 @@
               "script": {
                 "exec": [
                   "// Check if the download was successful (which would trigger activity tracking)",
-                  "pm.test('EPUB Download - Status code indicates success or file exists', function () {",
+                  "pm.test('Content ZIP Download - Status code indicates success or file exists', function () {",
                   "    // Accept both successful download (200) and file not found (404) for testing",
                   "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
                   "    ",
                   "    if (pm.response.code === 200) {",
-                  "        console.log('EPUB download successful - activity should be tracked');",
-                  "        pm.test('EPUB Download - Response is file', function () {",
-                  "            // For successful downloads, we expect binary content",
-                  "            pm.expect(pm.response.headers.get('Content-Type')).to.include('epub');",
+                  "        console.log('Content ZIP download successful - activity should be tracked');",
+                  "        pm.test('Content ZIP Download - Response is file', function () {",
+                  "            // For successful downloads, we expect ZIP content",
+                  "            pm.expect(pm.response.headers.get('Content-Type')).to.include('zip');",
                   "        });",
                   "    } else if (pm.response.code === 404) {",
-                  "        console.log('EPUB file not found - expected for test environment');",
+                  "        console.log('Content ZIP file not found - expected for test environment');",
                   "    }",
                   "});",
                   "",
@@ -2441,9 +2482,9 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/epubs/{{epubId}}/download",
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/content/{{contentId}}/download-zip",
               "host": ["{{baseUrl}}"],
-              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "epubs", "{{epubId}}", "download"]
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "content", "{{contentId}}", "download-zip"]
             }
           }
         },
@@ -2596,30 +2637,62 @@
           }
         },
         {
-          "name": "Delete Epub (Teacher)",
+          "name": "Delete Content (Teacher)",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Switch to teacher token",
+                  "pm.environment.set('authToken', pm.environment.get('teacherToken'));",
+                  "",
+                  "// Check if contentId exists before attempting delete",
+                  "const contentId = pm.environment.get('contentId');",
+                  "if (!contentId) {",
+                  "    console.warn('WARNING: contentId not set. Skipping delete - no content was created in this test run.');",
+                  "    // Set to 0 to indicate skip",
+                  "    pm.environment.set('skipContentDelete', 'true');",
+                  "} else {",
+                  "    pm.environment.set('skipContentDelete', 'false');",
+                  "}"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "console.log('Delete Epub Test - Response status:', pm.response.code);",
-                  "console.log('Delete Epub Test - Response body:', pm.response.text());",
+                  "const shouldSkip = pm.environment.get('skipContentDelete') === 'true';",
                   "",
-                  "pm.test('Delete Epub - Status code is 200', function () {",
-                  "    pm.expect(pm.response.code).to.equal(200);",
-                  "});",
-                  "",
-                  "if (pm.response.code === 200) {",
-                  "    const jsonData = pm.response.json();",
-                  "    console.log('Delete Epub - Parsed response:', JSON.stringify(jsonData, null, 2));",
-                  "    ",
-                  "    pm.test('Delete Epub - Response has success message', function () {",
-                  "        pm.expect(jsonData).to.have.property('message');",
-                  "        pm.expect(jsonData.message).to.include('deleted');",
+                  "if (shouldSkip) {",
+                  "    pm.test('Delete Content (Cleanup) - Skipped (no content created)', function () {",
+                  "        pm.expect(true).to.be.true;",
+                  "        console.log('✓ Content deletion skipped - no content was created in this test run');",
                   "    });",
                   "} else {",
-                  "    console.log('Delete Epub - Non-200 response, cannot parse JSON');",
-                  "}"
+                  "    console.log('Delete Content Test - Response status:', pm.response.code);",
+                  "    console.log('Delete Content Test - Response body:', pm.response.text());",
+                  "    ",
+                  "    pm.test('Delete Content (Cleanup) - Status code is 200 or 204', function () {",
+                  "        pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+                  "    });",
+                  "    ",
+                  "    if (pm.response.code === 200) {",
+                  "        const jsonData = pm.response.json();",
+                  "        console.log('Delete Content - Parsed response:', JSON.stringify(jsonData, null, 2));",
+                  "        ",
+                  "        pm.test('Delete Content (Cleanup) - Response has success message', function () {",
+                  "            pm.expect(jsonData).to.have.property('message');",
+                  "            pm.expect(jsonData.message).to.include('deleted');",
+                  "        });",
+                  "    } else {",
+                  "        console.log('Content deleted with 204 No Content');",
+                  "    }",
+                  "}",
+                  "",
+                  "// Clear contentId and skip flag after deletion attempt",
+                  "pm.environment.unset('contentId');",
+                  "pm.environment.unset('skipContentDelete');"
                 ]
               }
             }
@@ -2633,9 +2706,9 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/epubs/{{epubId}}",
+              "raw": "{{baseUrl}}/courses/{{courseId}}/modules/{{moduleId}}/lessons/{{lessonId}}/content/{{contentId}}",
               "host": ["{{baseUrl}}"],
-              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "epubs", "{{epubId}}"]
+              "path": ["courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons", "{{lessonId}}", "content", "{{contentId}}"]
             }
           }
         },

@@ -21,7 +21,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\ModuleController;
 use App\Http\Controllers\LessonController;
-use App\Http\Controllers\EpubController;
+use App\Http\Controllers\ContentController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskUserAnswerController;
 use App\Http\Controllers\QuizController;
@@ -66,18 +66,19 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/lessons', [LessonController::class, 'listByModule']);
             Route::get('/lessons/{lesson_id}', [LessonController::class, 'get']);
             Route::get('/lessons/{lesson_id}/recent', [LessonController::class, 'getRecent']);
-            Route::get('/lessons/{lesson_id}/epub-info', [LessonController::class, 'getEpubInfo']);
-            Route::post('/lessons/{lesson_id}/epub-version-check', [LessonController::class, 'checkEpubVersion']);
-            Route::post('/lessons/{lesson_id}/epub-reading-progress', [LessonController::class, 'trackEpubProgress'])->where('lesson_id', '[0-9]+');
             Route::put('/lessons/{lesson_id}', [LessonController::class, 'update'])->where('lesson_id', '[0-9]+');
             Route::delete('/lessons/{lesson_id}', [LessonController::class, 'delete'])->where('lesson_id', '[0-9]+');
 
             Route::prefix('lessons/{lesson_id}')->where(['lesson_id' => '[0-9]+'])->group(function () {
-                Route::post('/epubs', [EpubController::class, 'create']);
-                Route::get('/epubs', [EpubController::class, 'get']);
-                Route::get('/epubs/{epub_id}/download', [EpubController::class, 'download'])->where('epub_id', '[0-9]+');
-                Route::put('/epubs/{epub_id}', [EpubController::class, 'update'])->where('epub_id', '[0-9]+');
-                Route::delete('/epubs/{epub_id}', [EpubController::class, 'delete'])->where('epub_id', '[0-9]+');
+                // HTML/JSON Content API
+                Route::post('/content/import', [ContentController::class, 'import']);
+                Route::get('/content', [ContentController::class, 'get']);
+                Route::get('/content/metadata', [ContentController::class, 'getMetadata']);
+                Route::get('/content/page/{page}', [ContentController::class, 'getPage'])->where('page', '[0-9]+');
+                Route::get('/content/files/{filepath}', [ContentController::class, 'serveFile'])->where('filepath', '.*');
+                Route::put('/content/{content_id}', [ContentController::class, 'update'])->where('content_id', '[0-9]+');
+                Route::post('/content/{content_id}/reprocess', [ContentController::class, 'reprocess'])->where('content_id', '[0-9]+');
+                Route::delete('/content/{content_id}', [ContentController::class, 'delete'])->where('content_id', '[0-9]+');
             });
 
             Route::post('/tasks', [TaskController::class, 'create']);

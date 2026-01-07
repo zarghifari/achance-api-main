@@ -10,7 +10,6 @@ use App\Http\Resources\LessonCollection;
 use App\Http\Requests\LessonCreateRequest;
 use App\Http\Requests\LessonUpdateRequest;
 use App\Http\Resources\LessonDetailResource;
-use App\Http\Resources\EpubResource;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -68,7 +67,7 @@ class LessonController extends Controller
             $cacheKey = "lessons_list_{$module_id}";
             $lessons = Cache::remember($cacheKey, 3600, function() use ($module_id) {
                 Log::info("Fetching lessons from database for module_id: {$module_id}");
-                $lessons = Lesson::with('epub') // Eager load epub
+                $lessons = Lesson::with('content') // Eager load content
                     ->where('module_id', $module_id)
                     ->orderByRaw('COALESCE(position, 0)')
                     ->get();
@@ -98,8 +97,8 @@ class LessonController extends Controller
                     ->header('X-Cache-Status', 'HIT');
             }
             
-            $lesson = Lesson::with(['epub' => function($query) {
-                $query->select(['id', 'lesson_id', 'title', 'file_path', 'original_filename', 'file_size', 'mime_type', 'position', 'is_active']);
+            $lesson = Lesson::with(['content' => function($query) {
+                $query->select(['id', 'lesson_id', 'title', 'source_file_path', 'original_filename', 'source_file_size', 'type', 'position', 'is_active']);
             }])
                 ->where('module_id', $module_id)
                 ->where('id', $lesson_id)
@@ -131,15 +130,15 @@ class LessonController extends Controller
                     'position' => $lesson->position,
                     'created_at' => $lesson->created_at,
                     'updated_at' => $lesson->updated_at,
-                    'epub' => $lesson->epub ? [
-                        'id' => $lesson->epub->id,
-                        'title' => $lesson->epub->title,
-                        'file_path' => $lesson->epub->file_path,
-                        'original_filename' => $lesson->epub->original_filename,
-                        'file_size' => $lesson->epub->file_size,
-                        'mime_type' => $lesson->epub->mime_type,
-                        'position' => $lesson->epub->position,
-                        'is_active' => $lesson->epub->is_active,
+                    'content' => $lesson->content ? [
+                        'id' => $lesson->content->id,
+                        'title' => $lesson->content->title,
+                        'source_file_path' => $lesson->content->source_file_path,
+                        'original_filename' => $lesson->content->original_filename,
+                        'source_file_size' => $lesson->content->source_file_size,
+                        'type' => $lesson->content->type,
+                        'position' => $lesson->content->position,
+                        'is_active' => $lesson->content->is_active,
                     ] : null,
                 ],
                 'next_lesson' => $next_lesson ? [
@@ -174,7 +173,7 @@ class LessonController extends Controller
                 $lesson = Lesson::where('module_id', $module_id)
                     ->where('id', $lesson_id)
                     ->firstOrFail();
-                Log::info("Lesson fetched from database without epub: ", $lesson->toArray());
+                Log::info("Lesson fetched from database without content: ", $lesson->toArray());
                 return $lesson;
             });
 
@@ -290,15 +289,15 @@ class LessonController extends Controller
     }
 
     /**
-     * Get lesson with EPUB validation info for file checking
+     * Get lesson with content validation info for file checking
      */
-    public function getEpubInfo(int $course_id, int $module_id, int $lesson_id, Request $request): JsonResponse
+    public function getContentInfo(int $course_id, int $module_id, int $lesson_id, Request $request): JsonResponse
     {
         if ($request->user()->can('view courses')) {
-            $cacheKey = "lesson_epub_info_{$lesson_id}";
+            $cacheKey = "lesson_content_info_{$lesson_id}";
             
             $lessonData = Cache::remember($cacheKey, 1800, function() use ($module_id, $lesson_id) {
-                $lesson = Lesson::with('epub')
+                $lesson = Lesson::with('content')
                     ->where('module_id', $module_id)
                     ->where('id', $lesson_id)
                     ->first();
@@ -307,41 +306,41 @@ class LessonController extends Controller
                     return null;
                 }
 
-                $epubInfo = null;
-                if ($lesson->epub) {
-                    $epub = $lesson->epub;
-                    $filePath = public_path('storage/' . $epub->file_path);
+                $contentInfo = null;
+                if ($lesson->content) {
+                    $content = $lesson->content;
+                    $filePath = public_path('storage/' . $content->source_file_path);
                     
-                    $epubInfo = [
-                        'id' => $epub->id,
-                        'title' => $epub->title,
-                        'file_path' => $epub->file_path,
-                        'original_filename' => $epub->original_filename ?? basename($epub->file_path),
-                        'file_size' => $epub->file_size ?? (file_exists($filePath) ? filesize($filePath) : 0),
-                        'mime_type' => $epub->mime_type ?? 'application/epub+zip',
-                        'position' => $epub->position ?? 0,
-                        'is_active' => $epub->is_active ?? true,
+                    $contentInfo = [
+                        'id' => $content->id,
+                        'title' => $content->title,
+                        'source_file_path' => $content->source_file_path,
+                        'original_filename' => $content->original_filename ?? basename($content->source_file_path),
+                        'source_file_size' => $content->source_file_size ?? (file_exists($filePath) ? filesize($filePath) : 0),
+                        'type' => $content->type ?? 'html',
+                        'position' => $content->position ?? 0,
+                        'is_active' => $content->is_active ?? true,
                         'validation' => [
                             'file_exists' => file_exists($filePath),
                             'file_hash' => file_exists($filePath) ? md5_file($filePath) : null,
                             'file_size_bytes' => file_exists($filePath) ? filesize($filePath) : 0,
                             'last_modified' => file_exists($filePath) ? filemtime($filePath) : null,
-                            'download_url' => url('storage/' . $epub->file_path),
+                            'download_url' => url('storage/' . $content->source_file_path),
                             'version_check' => [
-                                'db_updated_at' => $epub->updated_at->timestamp,
+                                'db_updated_at' => $content->updated_at->timestamp,
                                 'file_modified_at' => file_exists($filePath) ? filemtime($filePath) : 0,
                                 'is_latest' => file_exists($filePath) ? 
-                                    ($epub->updated_at->timestamp <= filemtime($filePath)) : false
+                                    ($content->updated_at->timestamp <= filemtime($filePath)) : false
                             ]
                         ],
-                        'created_at' => $epub->created_at,
-                        'updated_at' => $epub->updated_at,
+                        'created_at' => $content->created_at,
+                        'updated_at' => $content->updated_at,
                     ];
                 }
 
                 return [
                     'lesson' => $lesson,
-                    'epub_info' => $epubInfo
+                    'content_info' => $contentInfo
                 ];
             });
 
@@ -376,7 +375,7 @@ class LessonController extends Controller
                         'created_at' => $lesson->created_at,
                         'updated_at' => $lesson->updated_at,
                     ],
-                    'epub_info' => $lessonData['epub_info'],
+                    'content_info' => $lessonData['content_info'],
                     'navigation' => [
                         'next_lesson' => $next_lesson ? [
                             'id' => $next_lesson->id,
@@ -399,25 +398,25 @@ class LessonController extends Controller
     }
 
     /**
-     * Check if EPUB file needs to be downloaded/updated
+     * Check if content file needs to be downloaded/updated
      */
-    public function checkEpubVersion(int $course_id, int $module_id, int $lesson_id, Request $request): JsonResponse
+    public function checkContentVersion(int $course_id, int $module_id, int $lesson_id, Request $request): JsonResponse
     {
         if ($request->user()->can('view courses')) {
-            $lesson = Lesson::with('epub')
+            $lesson = Lesson::with('content')
                 ->where('module_id', $module_id)
                 ->where('id', $lesson_id)
                 ->first();
 
-            if (!$lesson || !$lesson->epub) {
+            if (!$lesson || !$lesson->content) {
                 return response()->json([
                     'needs_download' => false,
-                    'message' => 'No EPUB found for this lesson'
+                    'message' => 'No content found for this lesson'
                 ], 404);
             }
 
-            $epub = $lesson->epub;
-            $filePath = public_path('storage/' . $epub->file_path);
+            $content = $lesson->content;
+            $filePath = public_path('storage/' . $content->source_file_path);
             
             // Check if client has the file info to compare
             $clientFileSize = $request->input('client_file_size', 0);
@@ -441,17 +440,17 @@ class LessonController extends Controller
                     'size' => $serverFileSize,
                     'hash' => $serverFileHash,
                     'last_modified' => $serverLastModified,
-                    'download_url' => $serverFileExists ? url('storage/' . $epub->file_path) : null
+                    'download_url' => $serverFileExists ? url('storage/' . $content->source_file_path) : null
                 ],
                 'client_file_info' => [
                     'size' => $clientFileSize,
                     'hash' => $clientFileHash,
                     'last_modified' => $clientLastModified
                 ],
-                'epub_info' => [
-                    'id' => $epub->id,
-                    'title' => $epub->title,
-                    'filename' => $epub->original_filename ?? basename($epub->file_path)
+                'content_info' => [
+                    'id' => $content->id,
+                    'title' => $content->title,
+                    'filename' => $content->original_filename ?? basename($content->source_file_path)
                 ]
             ], 200);
         }
@@ -460,16 +459,16 @@ class LessonController extends Controller
     }
 
     /**
-     * Track EPUB reading progress
+     * Track content reading progress
      */
-    public function trackEpubProgress(int $course_id, int $module_id, int $lesson_id, Request $request): JsonResponse
+    public function trackContentProgress(int $course_id, int $module_id, int $lesson_id, Request $request): JsonResponse
     {
         if ($request->user()->cannot('view courses')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         $request->validate([
-            'epub_id' => 'required|integer|exists:epubs,id',
+            'content_id' => 'required|integer|exists:contents,id',
             'progress_percentage' => 'required|numeric|min:0|max:100',
             'current_page' => 'nullable|integer|min:1',
             'total_pages' => 'nullable|integer|min:1',
@@ -478,8 +477,8 @@ class LessonController extends Controller
         ]);
 
         try {
-            $epub = \App\Models\Epub::where('lesson_id', $lesson_id)
-                ->where('id', $request->epub_id)
+            $content = \App\Models\Content::where('lesson_id', $lesson_id)
+                ->where('id', $request->content_id)
                 ->firstOrFail();
 
             $action = $request->input('action', 'progress');
@@ -494,20 +493,20 @@ class LessonController extends Controller
             // Find existing progress record or create new one
             $existingActivity = \App\Models\UserActivity::where('user_id', $request->user()->id)
                 ->where('activity_type', \App\Models\UserActivity::TYPE_EPUB)
-                ->where('activity_id', $request->epub_id)
+                ->where('activity_id', $request->content_id)
                 ->whereIn('action', [\App\Models\UserActivity::ACTION_START, \App\Models\UserActivity::ACTION_PROGRESS])
                 ->first();
 
             $activityData = [
                 'user_id' => $request->user()->id,
                 'activity_type' => \App\Models\UserActivity::TYPE_EPUB,
-                'activity_id' => $request->epub_id,
+                'activity_id' => $request->content_id,
                 'action' => $action,
                 'last_seen_url' => $request->fullUrl(),
                 'last_seen_at' => now(),
                 'progress_percentage' => $request->progress_percentage,
                 'metadata' => [
-                    'epub_title' => $epub->title,
+                    'content_title' => $content->title,
                     'lesson_id' => $lesson_id,
                     'module_id' => $module_id,
                     'course_id' => $course_id,
@@ -546,7 +545,7 @@ class LessonController extends Controller
             }
 
             return response()->json([
-                'message' => 'EPUB reading progress tracked successfully',
+                'message' => 'Content reading progress tracked successfully',
                 'data' => [
                     'activity_id' => $userActivity->id,
                     'progress_percentage' => $userActivity->progress_percentage,
@@ -556,10 +555,10 @@ class LessonController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Failed to track EPUB reading progress', [
+            Log::error('Failed to track content reading progress', [
                 'user_id' => $request->user()->id,
                 'lesson_id' => $lesson_id,
-                'epub_id' => $request->epub_id,
+                'content_id' => $request->content_id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);

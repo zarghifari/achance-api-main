@@ -22,11 +22,14 @@ class Course extends Model
         'cover_image',
         'video_url',
         'isOpen',
+        'is_published',
+        'status',
         'total_hours',
     ];
 
     protected $casts = [
         'isOpen' => 'boolean',
+        'is_published' => 'boolean',
         'total_hours' => 'integer',
     ];
     

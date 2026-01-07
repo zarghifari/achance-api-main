@@ -6,7 +6,7 @@ use App\Http\Requests\UserActivityCreateRequest;
 use App\Http\Resources\UserActivityResource;
 use App\Models\Lesson;
 use App\Models\Quiz;
-use App\Models\Epub;
+use App\Models\Content;
 use App\Models\UserActivity;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -97,9 +97,9 @@ class UserActivityController extends Controller
                 ->keyBy('id');
         }
 
-        $epubs = collect();
+        $contents = collect();
         if (!empty($epubIds)) {
-            $epubs = Epub::with(['lesson.module.course'])
+            $contents = Content::with(['lesson.module.course'])
                 ->whereIn('id', $epubIds)
                 ->get()
                 ->keyBy('id');
@@ -131,16 +131,16 @@ class UserActivityController extends Controller
                     break;
 
                 case UserActivity::TYPE_EPUB:
-                    if ($epubs->has($activity->activity_id)) {
-                        $epub = $epubs->get($activity->activity_id);
+                    if ($contents->has($activity->activity_id)) {
+                        $content = $contents->get($activity->activity_id);
                         $activityData['details'] = [
-                            'title' => $epub->title,
-                            'sub_title' => $epub->lesson->title ?? null,
-                            'lesson_id' => $epub->lesson_id,
-                            'module_id' => $epub->lesson->module->id ?? null,
-                            'course_id' => $epub->lesson->module->course->id ?? null,
-                            'file_size' => $epub->file_size,
-                            'original_filename' => $epub->original_filename
+                            'title' => $content->title,
+                            'sub_title' => $content->lesson->title ?? null,
+                            'lesson_id' => $content->lesson_id,
+                            'module_id' => $content->lesson->module->id ?? null,
+                            'course_id' => $content->lesson->module->course->id ?? null,
+                            'file_size' => $content->file_size,
+                            'original_filename' => $content->original_filename
                         ];
                     }
                     break;
@@ -263,7 +263,7 @@ class UserActivityController extends Controller
             ->groupBy('activity_id')
             ->orderBy('interaction_count', 'desc')
             ->limit(5)
-            ->with(['epub'])
+            ->with(['content'])
             ->get();
 
         return [

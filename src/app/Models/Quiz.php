@@ -46,6 +46,12 @@ class Quiz extends Model
         return $this->hasMany(QuizQuestion::class, 'quiz_id', 'id');
     }
 
+    // Alias for quizQuestions for backward compatibility
+    public function questions(): HasMany
+    {
+        return $this->quizQuestions();
+    }
+
     public function quizAnswers(): HasMany
     {
         return $this->hasMany(QuizAnswer::class, 'quiz_id', 'id');

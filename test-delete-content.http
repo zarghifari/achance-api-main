@@ -1,0 +1,29 @@
+### Test Content Delete Endpoint
+### This script tests if the DELETE content endpoint works correctly
+
+# First, login as teacher to get token
+POST http://localhost/api/login
+Content-Type: application/json
+
+{
+    "email": "teacher@example.com",
+    "password": "password"
+}
+
+###
+
+# Test 1: Try to delete content (should work with 200 response)
+DELETE http://localhost/api/courses/1/modules/1/lessons/1/content/1
+Authorization: Bearer {{token}}
+
+###
+
+# Test 2: Check if content is actually deleted (should return 404)
+GET http://localhost/api/courses/1/modules/1/lessons/1/content
+Authorization: Bearer {{token}}
+
+###
+
+# Test 3: Try to delete already deleted content (should return 404)
+DELETE http://localhost/api/courses/1/modules/1/lessons/1/content/1
+Authorization: Bearer {{token}}

@@ -1,9 +1,9 @@
 <?php
 
 namespace App\Http\Resources;
-use App\Http\Resources\EpubResource;
+use App\Http\Resources\ContentResource;
 
-use App\Models\Epub;
+use App\Models\Content;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -26,7 +26,9 @@ class LessonDetailResource extends JsonResource
             'attachment' => $this->attachment,
             'position' => (int) $this->position,
             'description' => $this->description,
-            'epub' => new EpubResource($this->epub), // Assuming a lesson has one epub
+            'content' => $this->whenLoaded('content', function () {
+                return new ContentResource($this->content);
+            }),
         ];
     }
 }

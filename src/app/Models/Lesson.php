@@ -25,12 +25,17 @@ class Lesson extends Model
         'attachment',
         'position',
         'description',
+        'is_active',
+        'duration',
+        'content_type',
     ];
 
     protected $casts = [
         'id' => 'integer',
         'module_id' => 'integer',
         'position' => 'integer',
+        'is_active' => 'boolean',
+        'duration' => 'integer',
     ];
 
     public function module(): BelongsTo
@@ -38,9 +43,9 @@ class Lesson extends Model
         return $this->belongsTo(Module::class);
     }
 
-    public function epub(): HasOne
+    public function content(): HasOne
     {
-        return $this->hasOne(Epub::class);
+        return $this->hasOne(Content::class);
     }
 
     public function course()
@@ -51,7 +56,7 @@ class Lesson extends Model
     // Scope for eager loading
     public function scopeWithFullData($query)
     {
-        return $query->with(['module.course', 'epub']);
+        return $query->with(['module.course', 'content']);
     }
 
 

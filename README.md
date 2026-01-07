@@ -1,74 +1,152 @@
 # AChance API - Optimized Laravel Backend
 
 ## 🚀 Overview
-AChance API is a high-performance Laravel-based API project designed for production-scale applications. It features an optimized Docker infrastructure with load balancing, caching, monitoring, and horizontal scaling capabilities.
+AChance API is a high-performance Laravel-based API project designed for production-scale applications. It features Content Management with document conversion (Word, HTML), full attachment support (images, videos, audio, PDFs), and optimized Docker infrastructure.
+
+### ✨ Key Features
+- **📄 Content Management** - Import Word/HTML documents, convert to paginated HTML
+- **🖼️ Full Attachment Support** - Images, videos, audio, PDFs automatically downloaded and bundled
+- **📦 ZIP Downloads** - Complete content packages with HTML + all assets
+- **🔐 Authentication & Permissions** - Role-based access control (Admin, Teacher, Student)
+- **📊 Analytics & Tracking** - User activity monitoring and reporting
+- **⚡ High Performance** - Redis caching, OPcache, optimized queries
 
 ### 🏗️ Architecture Highlights
-- **Load-Balanced PHP-FPM** (3 app instances)
+- **Load-Balanced PHP-FPM** with Nginx
 - **Redis Master/Slave Cluster** for caching and sessions
 - **MySQL 9.0** with performance optimizations
-- **Elasticsearch** for full-text search
 - **Background Queue Processing** with Laravel workers
-- **Complete Monitoring Stack** (Prometheus + Grafana)
-- **Nginx Load Balancer** with SSL support
+- **Complete Storage Management** for documents and media
+- **Monitoring Ready** (Prometheus + Grafana support)
 
 ## 📋 Prerequisites
 
 Before starting, ensure you have:
-- **Docker** (v20.10+) and **Docker Compose** (v2.0+)
-- **Minimum 8GB RAM** (16GB recommended for production)
-- **4+ CPU cores** recommended
-- **15GB+ free disk space**
+- **Docker Desktop** 4.x+ with **Docker Compose** 2.x+
+- **4GB+ RAM** available for Docker (8GB recommended)
+- **10GB+ free disk space**
 - **Git** installed
+- **Windows/macOS/Linux** supported
 
-## 🚀 Quick Deployment Guide
+## 🚀 Quick Start (5 Minutes)
 
-### Step 1: Clone the Repository
-```bash
-git clone https://github.com/muhammadghazi21/achance-api.git
-cd achance-api
+### Option 1: Automated Setup (Recommended)
+```powershell
+# Windows PowerShell
+.\docker-start.ps1
+
+# This script will:
+# ✅ Check Docker is running
+# ✅ Create .env file
+# ✅ Build containers
+# ✅ Start all services
+# ✅ Run migrations
+# ✅ Setup storage
+# ✅ Test the API
 ```
 
-### Step 2: Environment Setup
-```bash
-# Copy environment template
-cp src/.env.example src/.env
+### Option 2: Manual Setup
+```powershell
+# 1. Copy environment file
+Copy-Item src\.env.example src\.env
 
-# Edit environment variables (optional, defaults work for development)
-# nano src/.env
-```
+# 2. Build and start containers
+docker-compose up -d --build
 
-### Step 3: Start the Optimized Infrastructure
-```bash
-# Clean any existing setup
-docker-compose down -v
-docker system prune -f
+# 3. Wait for MySQL (30-60 seconds)
+docker-compose logs -f mysql
 
-# Start all optimized services (this may take 3-5 minutes on first run)
-docker-compose up -d
-
-# Monitor startup progress
-docker-compose logs -f
-```
-
-### Step 4: Install Dependencies
-```bash
-# Wait for containers to be ready (check with: docker-compose ps)
-sleep 30
-
-# Install PHP dependencies
-docker-compose exec app1 composer install --no-dev --optimize-autoloader
-
-# Generate Laravel application key
+# 4. Generate application key
 docker-compose exec app1 php artisan key:generate
+
+# 5. Run migrations
+docker-compose exec app1 php artisan migrate
+
+# 6. Create storage link
+docker-compose exec app1 php artisan storage:link
+
+# 7. (Optional) Seed database
+docker-compose exec app1 php artisan db:seed
 ```
 
-### Step 5: Database Setup
-```bash
-# Wait for MySQL to be ready
-docker-compose exec mysql mysqladmin ping -h localhost -uroot -proot
+## 🎯 Access Points
 
-# Create storage symbolic link (REQUIRED for EPUB file downloads)
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| **API** | http://localhost | N/A |
+| **phpMyAdmin** | http://localhost:8080 | user: `root`, pass: `root` |
+| **MySQL** | localhost:3306 | user: `root`, pass: `root`, db: `achance` |
+| **Redis** | localhost:6379 | No password |
+
+## 🛠️ Common Commands
+
+### Container Management
+```powershell
+# View all services
+docker-compose ps
+
+# View logs
+docker-compose logs -f app1
+
+# Restart service
+docker-compose restart app1
+
+# Stop all services
+docker-compose down
+
+# Remove all data (⚠️ deletes database)
+docker-compose down -v
+```
+
+### Laravel Commands
+```powershell
+# Clear cache
+docker-compose exec app1 php artisan cache:clear
+
+# Run migrations
+docker-compose exec app1 php artisan migrate
+
+# Seed database
+docker-compose exec app1 php artisan db:seed --class=ContentSeeder
+
+# List routes
+docker-compose exec app1 php artisan route:list
+
+# Run tests
+docker-compose exec app1 php artisan test
+```
+
+## 📚 Documentation
+
+- **[Docker Setup Guide](DOCKER_SETUP_GUIDE.md)** - Complete Docker documentation
+- **[API Documentation](API_DOCUMENTATION.md)** - Full API reference
+- **[Content API Quick Reference](CONTENT_API_QUICK_REFERENCE.md)** - Content endpoints
+- **[Attachment Support](ATTACHMENT_SUPPORT.md)** - Attachment handling details
+- **[Postman Tests](CONTENT_TESTS_INTEGRATION_COMPLETE.md)** - Test collection guide
+
+## 🧪 Testing
+
+### Run Postman Tests
+```powershell
+# Install newman
+npm install -g newman
+
+# Run tests
+cd src/tests/postman
+newman run Course_System_API_Tests.postman_collection.json `
+  --environment Course_System_Test_Environment.postman_environment.json
+```
+
+### Test API Manually
+```powershell
+# Test health endpoint
+curl http://localhost/api/health
+
+# Login
+curl -X POST http://localhost/api/login `
+  -H "Content-Type: application/json" `
+  -d '{"email":"admin@example.com","password":"password"}'
+```
 docker-compose exec app1 php artisan storage:link
 
 # Run database migrations and seeders

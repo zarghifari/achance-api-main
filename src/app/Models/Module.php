@@ -39,7 +39,7 @@ class Module extends Model
     
     public function lessons(): HasMany
     {
-        return $this->hasMany(Lesson::class);
+        return $this->hasMany(Lesson::class)->orderBy('position', 'asc');
     }
     
     public function tasks(): HasMany

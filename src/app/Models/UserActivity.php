@@ -65,7 +65,12 @@ class UserActivity extends Model
 
     public function epub(): BelongsTo
     {
-        return $this->belongsTo(Epub::class, 'activity_id');
+        return $this->belongsTo(Content::class, 'activity_id');
+    }
+    
+    public function content(): BelongsTo
+    {
+        return $this->belongsTo(Content::class, 'activity_id');
     }
 
     public function quiz(): BelongsTo

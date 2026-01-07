@@ -32,6 +32,12 @@ class AttemptAnswer extends Model
         return $this->belongsTo(QuizAnswer::class, 'selected_answer_id', 'id');
     }
 
+    // Alias for quizAnswers for compatibility
+    public function answer(): BelongsTo
+    {
+        return $this->quizAnswers();
+    }
+
     public function quizQuestions(): BelongsTo
     {
         return $this->belongsTo(QuizQuestion::class, 'quiz_question_id', 'id');

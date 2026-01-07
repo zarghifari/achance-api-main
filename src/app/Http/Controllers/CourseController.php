@@ -7,7 +7,7 @@ use App\Http\Requests\CourseUpdateRequest;
 use App\Http\Resources\CourseResource;
 use App\Http\Resources\CourseDetailResource;
 use App\Http\Resources\CourseCollection;
-use App\Http\Resources\EpubResource;
+use App\Http\Resources\ContentResource;
 use App\Models\Course;
 use App\Services\CacheService;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -166,8 +166,8 @@ class CourseController extends Controller
                 'modules.lessons' => function ($query) {
                     $query->orderBy('position')->select(['id', 'module_id', 'title', 'slug', 'cover_image', 'video_url', 'attachment', 'position', 'description']);
                 },
-                'modules.lessons.epub' => function ($query) {
-                    $query->select(['id', 'lesson_id', 'title', 'file_path', 'original_filename', 'file_size', 'mime_type', 'position', 'is_active']);
+                'modules.lessons.content' => function ($query) {
+                    $query->select(['id', 'lesson_id', 'title', 'type', 'total_pages', 'is_processed', 'metadata']);
                 },
                 'modules.tasks' => function ($query) {
                     $query->select(['id', 'module_id', 'title', 'slug', 'content', 'position']);
@@ -219,15 +219,13 @@ class CourseController extends Controller
                                     'attachment' => $lesson->attachment,
                                     'position' => $lesson->position,
                                     'description' => $lesson->description,
-                                    'epub' => $lesson->epub ? [
-                                        'id' => $lesson->epub->id,
-                                        'title' => $lesson->epub->title,
-                                        'file_path' => $lesson->epub->file_path,
-                                        'original_filename' => $lesson->epub->original_filename,
-                                        'file_size' => $lesson->epub->file_size,
-                                        'mime_type' => $lesson->epub->mime_type,
-                                        'position' => $lesson->epub->position,
-                                        'is_active' => $lesson->epub->is_active,
+                                    'content' => $lesson->content ? [
+                                        'id' => $lesson->content->id,
+                                        'title' => $lesson->content->title,
+                                        'type' => $lesson->content->type,
+                                        'total_pages' => $lesson->content->total_pages,
+                                        'is_processed' => $lesson->content->is_processed,
+                                        'metadata' => $lesson->content->metadata,
                                     ] : null,
                                 ];
                             })->values()->all(),
@@ -272,7 +270,7 @@ class CourseController extends Controller
                     'modules.lessons' => function ($query) {
                         $query->orderBy('position');
                     },
-                    'modules.lessons.epub',
+                    'modules.lessons.content',
                     'modules.tasks'
                 ])->find($course_id);
 
@@ -348,7 +346,7 @@ class CourseController extends Controller
                                     'attachment' => $lesson->attachment,
                                     'position' => $lesson->position,
                                     'description' => $lesson->description,
-                                    'epub' => $lesson->epub ? new EpubResource($lesson->epub) : null,
+                                    'content' => $lesson->content ? new ContentResource($lesson->content) : null,
                                     'navigation' => [
                                         'next_lesson' => $lesson->next_lesson ? [
                                             'id' => $lesson->next_lesson->id,

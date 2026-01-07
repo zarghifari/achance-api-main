@@ -70,7 +70,7 @@ class ModuleController extends Controller
                     'lessons' => function ($query) {
                         $query->orderBy('position');
                     },
-                    'lessons.epub',
+                    'lessons.content',
                     'tasks'
                 ])
                 ->where('course_id', $course_id)
